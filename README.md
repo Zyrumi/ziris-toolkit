@@ -30,13 +30,20 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - Each person at most once a minute, and several buffs at once get one thank you.
 - Short buffs (like a proc from someone's heal) and buffs during combat are skipped.
 
-**Undress.** A button just outside the top right of your character window (C). For corpse runs, when you might die again and again: gear in your bags loses no durability.
+**Undress.** A button on the top edge of your character window (C), at the right end. For corpse runs, when you might die again and again: gear in your bags loses no durability.
 
 - **Undress** puts every equipped item that can lose durability into your bags. Rings, necklace, trinkets, shirt and tabard stay on.
 - **Dress** puts exactly those items back in their slots. It remembers them even after you log out.
 - It always takes off what you wear right now, so there is no equipment set to keep up to date.
 - If your bags are full, what doesn't fit stays on, and chat tells you how many.
 - Gear can't be changed in combat or while you are dead. Undress before the run, dress when you are through.
+
+**Boat times.** A few lines at the top of the screen, only when they matter:
+
+- Standing at a dock: when each boat or zeppelin from there leaves, for example "Boat to Menethil leaves in 1:42". If it is still on its way, also when it arrives.
+- On board: "Arriving at Auberdine in 0:51".
+- A "~" in front means the time is an estimate that hasn't been confirmed recently.
+- The times come from the DockWatch addon, which learns them and shares them between players. Keep DockWatch installed; you can switch off its own map, window and voices in its options (`/dw options`).
 
 ## Coming from Loot Highlight or Fresh Ranks
 

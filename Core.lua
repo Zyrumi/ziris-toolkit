@@ -8,6 +8,7 @@
 --   Cleanse buttons (Cleanse.lua)
 --   Thanks          (Thanks.lua)
 --   Undress         (Undress.lua)
+--   Boat times      (Boats.lua, uses the DockWatch addon's public API)
 
 local ADDON_NAME, root = ...
 
@@ -20,6 +21,7 @@ local DEFAULTS = {
         cleanse = true,
         thanks = true,
         undress = true,
+        boats = true,
     },
 }
 
@@ -281,6 +283,23 @@ local function BuildMainPage()
         function(v) root.SetModule("undress", v) end)
     y = y - 26
     Note(panel, "For corpse runs: gear in your bags loses no durability when you die. Rings, necklace and trinkets stay on.", x + 30, y)
+    y = y - 34
+
+    -- Boat times
+    Check(panel, "Boat times",
+        "At a dock: when each boat or zeppelin from there leaves. On board: when you arrive. Shown at the top of the screen, only then.",
+        x, y,
+        function() return root.ModuleOn("boats") end,
+        function(v) root.SetModule("boats", v) end)
+    y = y - 26
+    local boatsNote = Note(panel, "", x + 30, y)
+    refreshers[#refreshers + 1] = function()
+        if root.Boats and root.Boats.HasDockWatch() then
+            boatsNote:SetText("Times come from DockWatch. You can switch off DockWatch's own map and window in its options (/dw options).")
+        else
+            boatsNote:SetText("Needs the DockWatch addon, which learns and shares the times. Install it to see boat times.")
+        end
+    end
 
     panel:SetScript("OnShow", RefreshAll)
     return panel

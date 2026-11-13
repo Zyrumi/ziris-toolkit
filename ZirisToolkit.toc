@@ -1,8 +1,9 @@
 ## Interface: 16001
 ## Title: Ziri's Toolkit
-## Notes: Small helpers in one addon: Loot Highlight, Fresh Ranks, cleanse buttons, thanking people who buff you and an undress button.
+## Notes: Small helpers in one addon: Loot Highlight, Fresh Ranks, cleanse buttons, thanking people who buff you, an undress button and boat times.
 ## Version: 1.0.0
 ## SavedVariables: ZirisToolkitDB, LootHighlightDB
+## OptionalDeps: DockWatch
 
 Core.lua
 LootHighlight\LootHighlight.lua
@@ -11,3 +12,4 @@ FreshRanks.lua
 Cleanse.lua
 Thanks.lua
 Undress.lua
+Boats.lua
