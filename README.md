@@ -8,7 +8,7 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 
 **Fresh Ranks.** When you learn a higher rank of a spell, your action buttons with the old rank get the new one. Lower ranks you placed on purpose stay. New spells go into an empty slot.
 
-**Cleanse buttons.** A small list with you and your party members. Click a name to cast your cleanse spell on that person, no targeting needed.
+**Cleanse buttons.** A small button with your cleanse spell's icon beside your own frame and each party member's frame. Click it to cast your cleanse spell on that person, no targeting needed.
 
 | Class | Left click | Right click |
 |---|---|---|
@@ -18,11 +18,11 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 | Mage | Remove Lesser Curse | |
 | Priest | Dispel Magic | Abolish Disease (or Cure Disease) |
 
-- Out of combat, a name gets a colored frame and the debuff type (for example "Curse") when it has something you can remove.
-- In combat the game hides people's debuffs from addons, so the frame may not show. Clicking still works: if there is nothing to remove, the game just says so.
-- Hover a name to see which click does what.
-- Drag the "Cleanse" title to move the list. You can lock it in the settings.
-- Classes without a cleanse spell don't see the list.
+- Out of combat, a button lights up with a colored frame and a letter for the debuff type (M magic, C curse, P poison, D disease) when that person has something you can remove. With nothing to remove it is dimmed.
+- In combat the game hides people's debuffs from addons, so the button stays plain. Clicking still works: if there is nothing to remove, the game just says so.
+- Hover a button to see which click does what.
+- The buttons sit on the left of the game's frames and move with them (Edit Mode). Classic and raid-style party frames both work.
+- Classes without a cleanse spell don't get buttons.
 
 **Thanks.** Does the /thank emote at a player who gives you a buff out in the world.
 

@@ -19,11 +19,6 @@ local DEFAULTS = {
         cleanse = true,
         thanks = true,
     },
-    cleanse = {
-        locked = false,
-        showSolo = true,
-        point = nil, -- { point, relativePoint, x, y }
-    },
 }
 
 function root.Print(msg)
@@ -258,32 +253,12 @@ local function BuildMainPage()
 
     -- Cleanse buttons
     Check(panel, "Cleanse buttons",
-        "One button for you and each party member. Click a button to cast your cleanse spell on that person, no targeting needed.",
+        "A small button beside your own frame and each party member's frame. Click it to cast your cleanse spell on that person, no targeting needed.",
         x, y,
         function() return root.ModuleOn("cleanse") end,
         function(v) root.SetModule("cleanse", v) end)
     y = y - 26
-    Note(panel, "Click a name to cleanse that person. Left and right click use different spells if your class has two.", x + 30, y)
-    y = y - 22
-    Check(panel, "Lock position",
-        "Stops the buttons from being moved by dragging their title.",
-        x + 26, y,
-        function() return root.db.cleanse.locked end,
-        function(v)
-            root.db.cleanse.locked = v
-            if root.Cleanse then root.Cleanse.Refresh() end
-        end,
-        function() return root.ModuleOn("cleanse") end)
-    y = y - 26
-    Check(panel, "Show when not in a group",
-        "Shows your own button when you are on your own.",
-        x + 26, y,
-        function() return root.db.cleanse.showSolo end,
-        function(v)
-            root.db.cleanse.showSolo = v
-            if root.Cleanse then root.Cleanse.Refresh() end
-        end,
-        function() return root.ModuleOn("cleanse") end)
+    Note(panel, "Click the button beside a frame to cleanse that person. Left and right click use different spells if your class has two.", x + 30, y)
     y = y - 34
 
     -- Thanks
