@@ -57,7 +57,7 @@ function Rested.Save()
         level = level,
         maxXP = maxXP,
         rested = Num(GetXPExhaustion) or 0,
-        resting = ok and resting == true,
+        resting = ok and not IsSecret(resting) and resting == true,
         class = (type(class) == "string" and not IsSecret(class)) and class or nil,
         max = AtMaxLevel(level) or maxXP <= 0,
         t = time(),

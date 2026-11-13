@@ -176,7 +176,7 @@ local function Entered()
         return -- a loading screen inside the same instance
     end
     Prune(Now())
-    here = { map = map, name = tostring(name) }
+    here = { map = map, name = (type(name) == "string" and not IsSecret(name)) and name or "An instance" }
     local same = LikelySame(map)
     if same then
         here.maybe = same -- confirmed or corrected once a creature is seen

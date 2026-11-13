@@ -63,7 +63,8 @@ local function ThankWorthy(aura)
     if type(aura) ~= "table" or IsSecret(aura) then
         return nil
     end
-    if aura.isHelpful ~= true or aura.isFromPlayerOrPlayerPet ~= true then
+    local helpful, fromPlayer = aura.isHelpful, aura.isFromPlayerOrPlayerPet
+    if IsSecret(helpful) or IsSecret(fromPlayer) or helpful ~= true or fromPlayer ~= true then
         return nil
     end
     local unit = aura.sourceUnit
@@ -90,11 +91,17 @@ local function OnAura(info)
     if not listening or not root.ModuleOn("thanks") then
         return
     end
-    if InCombatLockdown() or type(info) ~= "table" or info.isFullUpdate then
+    if InCombatLockdown() or type(info) ~= "table" or IsSecret(info) then
+        return
+    end
+    -- The game can hide aura details from addons (secret values): then
+    -- there is no telling who buffed you, so nobody is thanked.
+    local full = info.isFullUpdate
+    if IsSecret(full) or full then
         return -- full updates are zoning or reloads, not new buffs
     end
     local added = info.addedAuras
-    if type(added) ~= "table" then
+    if IsSecret(added) or type(added) ~= "table" then
         return
     end
     local now = GetTime()

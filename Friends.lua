@@ -33,11 +33,11 @@ local INVITE_OK = 9
 -- True if this Battle.net friend is online but you can't group with them.
 function Friends.OutOfReach(index)
     local info = Safe(C_BattleNet and C_BattleNet.GetFriendAccountInfo, index)
-    if type(info) ~= "table" or info.isFavorite then
+    if type(info) ~= "table" or IsSecret(info.isFavorite) or info.isFavorite then
         return false
     end
     local game = info.gameAccountInfo
-    if type(game) ~= "table" or not game.isOnline then
+    if type(game) ~= "table" or IsSecret(game) or IsSecret(game.isOnline) or not game.isOnline then
         return false -- offline friends stay where they are
     end
     local restriction = Safe(FriendsFrame_GetInviteRestriction, index)
@@ -133,7 +133,7 @@ function Friends.Report()
     for i = 1, total do
         local info = Safe(C_BattleNet and C_BattleNet.GetFriendAccountInfo, i)
         local game = type(info) == "table" and info.gameAccountInfo
-        if type(game) == "table" and game.isOnline then
+        if type(game) == "table" and not IsSecret(game.isOnline) and game.isOnline then
             shown = shown + 1
             root.Print(("%s: %s | realm %s (%s) | invite %s | %s"):format(
                 tostring(info.accountName),
