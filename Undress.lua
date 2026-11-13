@@ -37,16 +37,7 @@ local function Safe(fn, ...)
 end
 
 -- Saved per character, so "Dress" still works after logging out naked.
-local function CharKey()
-    local ok, name, second = pcall(UnitName, "player")
-    if not ok or IsSecret(name) or type(name) ~= "string" then
-        return nil
-    end
-    if type(second) == "string" and second ~= "" and not IsSecret(second) then
-        return name .. " " .. second
-    end
-    return name
-end
+local CharKey = root.CharKey
 
 local function Saved()
     local key = CharKey()

@@ -10,6 +10,8 @@
 --   Undress         (Undress.lua)
 --   Boat times      (Boats.lua, uses the DockWatch addon's public API)
 --   Friends list    (Friends.lua)
+--   Instance limit  (Instances.lua)
+--   Rested XP       (Rested.lua)
 
 local ADDON_NAME, root = ...
 
@@ -24,6 +26,8 @@ local DEFAULTS = {
         undress = true,
         boats = true,
         friends = true,
+        instances = true,
+        rested = true,
     },
 }
 
@@ -37,6 +41,28 @@ end
 -- compared or read. Treat those as unknown.
 function root.IsSecret(v)
     return issecretvalue ~= nil and issecretvalue(v) == true
+end
+
+-- "Ziri Shortfuse": the character's name (and surname, on Forever).
+function root.CharKey()
+    local ok, name, second = pcall(UnitName, "player")
+    if not ok or root.IsSecret(name) or type(name) ~= "string" then
+        return nil
+    end
+    if type(second) == "string" and second ~= "" and not root.IsSecret(second) then
+        return name .. " " .. second
+    end
+    return name
+end
+
+-- 0:42, 12:30, 1:05:00
+function root.Clock(seconds)
+    seconds = math.max(0, math.floor(seconds + 0.5))
+    local h, m, s = math.floor(seconds / 3600), math.floor(seconds / 60) % 60, seconds % 60
+    if h > 0 then
+        return ("%d:%02d:%02d"):format(h, m, s)
+    end
+    return ("%d:%02d"):format(m, s)
 end
 
 -------------------------------------------------------------------------------
@@ -312,6 +338,26 @@ local function BuildMainPage()
         function(v) root.SetModule("friends", v) end)
     y = y - 26
     Note(panel, "Uses the game's own check behind the invite button. Favorites stay on top. Type /zt friends to see why someone moved.", x + 30, y)
+    y = y - 34
+
+    -- Instance limit
+    Check(panel, "Instance limit",
+        "Counts the new dungeon and raid instances you enter, on all your characters. The game allows 5 an hour and 30 a day.",
+        x, y,
+        function() return root.ModuleOn("instances") end,
+        function(v) root.SetModule("instances", v) end)
+    y = y - 26
+    Note(panel, "Says in chat which number each instance was, and shows when the next is allowed while you are at the limit. /zt instances lists them.", x + 30, y)
+    y = y - 34
+
+    -- Rested XP
+    Check(panel, "Rested XP per character",
+        "Remembers each character's rested XP and works out how much more they have rested since you logged out.",
+        x, y,
+        function() return root.ModuleOn("rested") end,
+        function(v) root.SetModule("rested", v) end)
+    y = y - 26
+    Note(panel, "Type /zt rested to see every character, most rested first. Log in on each once to add them.", x + 30, y)
 
     panel:SetScript("OnShow", RefreshAll)
     return panel
@@ -411,6 +457,14 @@ SlashCmdList.ZIRISTOOLKIT = function(input)
     local cmd = strtrim(input or ""):lower()
     if cmd == "friends" and root.Friends then
         root.Friends.Report()
+        return
+    end
+    if cmd == "instances" and root.Instances then
+        root.Instances.Report()
+        return
+    end
+    if cmd == "rested" and root.Rested then
+        root.Rested.Report()
         return
     end
     if not root.OpenOptions() then

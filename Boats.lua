@@ -46,10 +46,7 @@ local function Ask(api, name, ...)
     return result
 end
 
-local function Clock(seconds)
-    seconds = math.max(0, math.floor(seconds + 0.5))
-    return ("%d:%02d"):format(math.floor(seconds / 60), seconds % 60)
-end
+local Clock = root.Clock
 
 local function When(seconds, approximate)
     return (approximate and "~" or "") .. Clock(seconds)

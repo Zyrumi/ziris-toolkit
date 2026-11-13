@@ -51,6 +51,19 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - Favorites always stay on top, and offline friends stay where they are.
 - `/zt friends` lists your online friends and says why each one stays or moved.
 
+**Instance limit.** The game lets an account enter at most 5 new dungeon or raid instances an hour and 30 a day. This counts the ones you enter, on all your characters.
+
+- Each time you enter a new instance, chat says which number it was: "Deadmines counted: 3 of 5 this hour, 8 of 30 today."
+- While you are at a limit, a line at the top of the screen counts down until the next instance is allowed.
+- Going back into the same instance doesn't count again. Going into a fresh copy after a reset does.
+- `/zt instances` lists the instances of the last day.
+- The game doesn't tell addons your count, so instances entered without the toolkit running (for example on another computer) are missing.
+
+**Rested XP per character.** `/zt rested` lists your characters, most rested first, with how much of a level each has rested and when they will be full.
+
+- It remembers each character when you play them and works out how much more they have rested since: 5% of a level every 8 hours in an inn or city, a quarter of that elsewhere, up to one and a half levels.
+- Log in on each character once to add it. Characters at max level are left out.
+
 ## Coming from Loot Highlight or Fresh Ranks
 
 This addon replaces the separate Loot Highlight and Fresh Ranks addons. While an old one is still installed, the toolkit leaves that part to it and says so in chat once. Remove the old folder to use the toolkit's. Your Loot Highlight settings move over by themselves after you have played once with both installed.
