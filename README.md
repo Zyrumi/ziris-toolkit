@@ -30,6 +30,14 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - Each person at most once a minute, and several buffs at once get one thank you.
 - Short buffs (like a proc from someone's heal) and buffs during combat are skipped.
 
+**Undress.** A button just outside the top right of your character window (C). For corpse runs, when you might die again and again: gear in your bags loses no durability.
+
+- **Undress** puts every equipped item that can lose durability into your bags. Rings, necklace, trinkets, shirt and tabard stay on.
+- **Dress** puts exactly those items back in their slots. It remembers them even after you log out.
+- It always takes off what you wear right now, so there is no equipment set to keep up to date.
+- If your bags are full, what doesn't fit stays on, and chat tells you how many.
+- Gear can't be changed in combat or while you are dead. Undress before the run, dress when you are through.
+
 ## Coming from Loot Highlight or Fresh Ranks
 
 This addon replaces the separate Loot Highlight and Fresh Ranks addons. While an old one is still installed, the toolkit leaves that part to it and says so in chat once. Remove the old folder to use the toolkit's. Your Loot Highlight settings move over by themselves after you have played once with both installed.

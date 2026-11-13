@@ -7,6 +7,7 @@
 --   Fresh Ranks     (FreshRanks.lua)
 --   Cleanse buttons (Cleanse.lua)
 --   Thanks          (Thanks.lua)
+--   Undress         (Undress.lua)
 
 local ADDON_NAME, root = ...
 
@@ -18,6 +19,7 @@ local DEFAULTS = {
         freshRanks = true,
         cleanse = true,
         thanks = true,
+        undress = true,
     },
 }
 
@@ -269,6 +271,16 @@ local function BuildMainPage()
         function(v) root.SetModule("thanks", v) end)
     y = y - 26
     Note(panel, "Out in the world only: party and raid members are never thanked, and each person at most once a minute.", x + 30, y)
+    y = y - 34
+
+    -- Undress
+    Check(panel, "Undress button",
+        "A button beside the character window (C) that puts your gear into your bags and back on again.",
+        x, y,
+        function() return root.ModuleOn("undress") end,
+        function(v) root.SetModule("undress", v) end)
+    y = y - 26
+    Note(panel, "For corpse runs: gear in your bags loses no durability when you die. Rings, necklace and trinkets stay on.", x + 30, y)
 
     panel:SetScript("OnShow", RefreshAll)
     return panel
