@@ -19,6 +19,11 @@ local DRESS_ORDER = { 16, 17, 18, 1, 3, 5, 6, 7, 8, 9, 10, 15, 2, 4, 11, 12, 13,
 
 local IsSecret = root.IsSecret
 local button
+-- While the game moves items they are locked and can't be picked up again.
+-- The button waits for that, so clicking fast can't tangle things up.
+local moving = false
+local movingSince = 0
+local MIN_WAIT, MAX_WAIT = 0.5, 5
 
 local function Safe(fn, ...)
     if not fn then
@@ -118,6 +123,64 @@ local function FindInBags(entry)
     return nil
 end
 
+local function SlotLocked(slot)
+    return Safe(IsInventoryItemLocked, slot) == true
+end
+
+local function BagItemLocked(bag, slot)
+    local info = Safe(C_Container.GetContainerItemInfo, bag, slot)
+    return type(info) == "table" and info.isLocked == true
+end
+
+local function AnyLocked()
+    for slot = 1, LAST_SLOT do
+        if SlotLocked(slot) then
+            return true
+        end
+    end
+    for bag = 0, NumBags() do
+        local size = Safe(C_Container.GetContainerNumSlots, bag) or 0
+        for slot = 1, size do
+            if BagItemLocked(bag, slot) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function WaitForMoves()
+    if moving or GetTime() - movingSince < MIN_WAIT then
+        if button then
+            local ok = pcall(function()
+                local waited = GetTime() - movingSince
+                if waited >= MAX_WAIT or (waited >= MIN_WAIT and not AnyLocked()) then
+                    moving = false
+                    button:Enable()
+                    Undress.UpdateButton()
+                else
+                    C_Timer.After(0.2, WaitForMoves)
+                end
+            end)
+            if not ok then
+                moving = false
+                button:Enable()
+            end
+        else
+            moving = false
+        end
+    end
+end
+
+local function StartWaiting()
+    moving = true
+    movingSince = GetTime()
+    if button then
+        button:Disable()
+    end
+    C_Timer.After(0.2, WaitForMoves)
+end
+
 local function Pending()
     local saved = Saved()
     return saved ~= nil and next(saved) ~= nil
@@ -155,7 +218,7 @@ function Undress.TakeOff()
     local moved, kept = 0, 0
     for slot = 1, LAST_SLOT do
         local _, maxDurability = Safe(GetInventoryItemDurability, slot)
-        if maxDurability and maxDurability > 0 then
+        if maxDurability and maxDurability > 0 and not SlotLocked(slot) then
             local target = free[moved + 1]
             if not target then
                 kept = kept + 1
@@ -172,6 +235,9 @@ function Undress.TakeOff()
     end
     if GetCursorInfo and GetCursorInfo() then
         ClearCursor()
+    end
+    if moved > 0 then
+        StartWaiting()
     end
     if moved == 0 and kept == 0 then
         root.Print("nothing to take off.")
@@ -191,7 +257,7 @@ function Undress.PutOn()
     if not saved then
         return
     end
-    local done, missing, busy = 0, 0, 0
+    local done, missing, busy, stillMoving = 0, 0, 0, 0
     for _, slot in ipairs(DRESS_ORDER) do
         local entry = saved[slot]
         if entry then
@@ -201,7 +267,9 @@ function Undress.PutOn()
                 busy = busy + 1
             else
                 local bag, bagSlot = FindInBags(entry)
-                if bag then
+                if bag and BagItemLocked(bag, bagSlot) then
+                    stillMoving = stillMoving + 1 -- kept for the next click
+                elseif bag then
                     C_Container.PickupContainerItem(bag, bagSlot)
                     PickupInventoryItem(slot)
                     saved[slot] = nil
@@ -216,12 +284,18 @@ function Undress.PutOn()
     if GetCursorInfo and GetCursorInfo() then
         ClearCursor()
     end
+    if done > 0 then
+        StartWaiting()
+    end
     local msg = ("put on %d items."):format(done)
     if missing > 0 then
         msg = msg .. (" %d are no longer in your bags."):format(missing)
     end
     if busy > 0 then
         msg = msg .. (" %d slots already had something on, left as is."):format(busy)
+    end
+    if stillMoving > 0 then
+        msg = msg .. (" %d are still being moved, click Dress again in a moment."):format(stillMoving)
     end
     root.Print(msg)
     Undress.UpdateButton()
@@ -250,9 +324,14 @@ local function CreateButton()
     end
     button = CreateFrame("Button", "ZirisToolkitUndressButton", parent, "UIPanelButtonTemplate")
     button:SetSize(90, 22)
-    -- Just outside the window's top right, so it covers nothing of the game's.
-    button:SetPoint("TOPLEFT", parent, "TOPRIGHT", 2, -28)
+    -- On top of the window's top edge, right side: clear of the close
+    -- button and the tabs beside the window.
+    button:SetPoint("BOTTOMRIGHT", parent, "TOPRIGHT", -4, 2)
+    button:SetFrameLevel(parent:GetFrameLevel() + 20)
     button:SetScript("OnClick", function()
+        if moving then
+            return -- still moving the last batch
+        end
         local ok, err = pcall(Pending() and Undress.PutOn or Undress.TakeOff)
         if not ok then
             root.Print("undress: something went wrong: " .. tostring(err))
