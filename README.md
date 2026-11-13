@@ -45,6 +45,12 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - A "~" in front means the time is an estimate that hasn't been confirmed recently.
 - The times come from the DockWatch addon, which learns them and shares them between players. Keep DockWatch installed; you can switch off its own map, window and voices in its options (`/dw options`).
 
+**Tidy friends list.** Battle.net friends who are online somewhere you can't join them move to the bottom of your friends list, below your offline friends. Nobody is removed.
+
+- "Can't join them" is the game's own check, the one that greys out the invite button: another rule set, another WoW version, another game or only the Battle.net app.
+- Favorites always stay on top, and offline friends stay where they are.
+- `/zt friends` lists your online friends and says why each one stays or moved.
+
 ## Coming from Loot Highlight or Fresh Ranks
 
 This addon replaces the separate Loot Highlight and Fresh Ranks addons. While an old one is still installed, the toolkit leaves that part to it and says so in chat once. Remove the old folder to use the toolkit's. Your Loot Highlight settings move over by themselves after you have played once with both installed.

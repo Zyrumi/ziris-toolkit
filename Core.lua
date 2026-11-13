@@ -9,6 +9,7 @@
 --   Thanks          (Thanks.lua)
 --   Undress         (Undress.lua)
 --   Boat times      (Boats.lua, uses the DockWatch addon's public API)
+--   Friends list    (Friends.lua)
 
 local ADDON_NAME, root = ...
 
@@ -22,6 +23,7 @@ local DEFAULTS = {
         thanks = true,
         undress = true,
         boats = true,
+        friends = true,
     },
 }
 
@@ -300,6 +302,16 @@ local function BuildMainPage()
             boatsNote:SetText("Needs the DockWatch addon, which learns and shares the times. Install it to see boat times.")
         end
     end
+    y = y - 34
+
+    -- Friends list
+    Check(panel, "Tidy friends list",
+        "Battle.net friends who are online somewhere you can't join them (another rule set, another WoW version, another game) move to the bottom of your friends list. Nobody is removed.",
+        x, y,
+        function() return root.ModuleOn("friends") end,
+        function(v) root.SetModule("friends", v) end)
+    y = y - 26
+    Note(panel, "Uses the game's own check behind the invite button. Favorites stay on top. Type /zt friends to see why someone moved.", x + 30, y)
 
     panel:SetScript("OnShow", RefreshAll)
     return panel
@@ -395,7 +407,12 @@ end)
 
 SLASH_ZIRISTOOLKIT1 = "/zt"
 SLASH_ZIRISTOOLKIT2 = "/toolkit"
-SlashCmdList.ZIRISTOOLKIT = function()
+SlashCmdList.ZIRISTOOLKIT = function(input)
+    local cmd = strtrim(input or ""):lower()
+    if cmd == "friends" and root.Friends then
+        root.Friends.Report()
+        return
+    end
     if not root.OpenOptions() then
         root.Print("the settings page could not be opened")
     end
