@@ -232,25 +232,63 @@ end
 
 local OLD_NOTE = "The separate %s addon is still installed, so this part is left to it. Remove the old addon to use this one."
 
+-- Puts a settings page in a scroll frame so it fits however many parts
+-- there are. Returns the frame to put the page's contents on.
+local SCROLL_TEMPLATES = { "ScrollFrameTemplate", "UIPanelScrollFrameTemplate" }
+
+local function ScrollArea(panel)
+    local scroll
+    for _, template in ipairs(SCROLL_TEMPLATES) do
+        local ok, frame = pcall(CreateFrame, "ScrollFrame", nil, panel, template)
+        if ok and frame then
+            scroll = frame
+            break
+        end
+    end
+    local hasBar = scroll ~= nil
+    if not scroll then
+        -- No template: scroll with the mouse wheel only.
+        scroll = CreateFrame("ScrollFrame", nil, panel)
+        scroll:EnableMouseWheel(true)
+        scroll:SetScript("OnMouseWheel", function(self, delta)
+            local range = self:GetVerticalScrollRange() or 0
+            local v = (self:GetVerticalScroll() or 0) - delta * 40
+            self:SetVerticalScroll(math.max(0, math.min(range, v)))
+        end)
+    end
+    scroll:SetPoint("TOPLEFT", 0, -4)
+    scroll:SetPoint("BOTTOMRIGHT", hasBar and -28 or 0, 4)
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(580, 1)
+    scroll:SetScrollChild(content)
+    scroll:HookScript("OnSizeChanged", function(_, width)
+        if type(width) == "number" and width > 0 then
+            content:SetWidth(width)
+        end
+    end)
+    return content
+end
+
 local function BuildMainPage()
     local panel = CreateFrame("Frame", "ZirisToolkitOptions", UIParent)
     panel:Hide()
+    local page = ScrollArea(panel)
     local x, y = 16, -16
 
-    local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    local title = page:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", x, y)
     title:SetText(root.TITLE)
-    local version = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    local version = page:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     version:SetPoint("LEFT", title, "RIGHT", 8, 0)
     local meta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
     local okV, v = pcall(meta, ADDON_NAME, "Version")
     version:SetText(okV and v and ("version " .. v) or "")
     y = y - 26
-    Note(panel, "Switch each part on or off. Changes apply at once.", x, y)
+    Note(page, "Switch each part on or off. Changes apply at once.", x, y)
     y = y - 28
 
     -- Loot Highlight
-    Check(panel, "Loot Highlight",
+    Check(page, "Loot Highlight",
         "Points out nearby herbs, ore, chests, quest objects and corpses with loot. Its own settings are on the Loot Highlight page under Ziri's Toolkit.",
         x, y,
         function() return root.LH and root.LH.db and root.LH.db.enabled end,
@@ -262,14 +300,14 @@ local function BuildMainPage()
         function() return root.LH ~= nil and root.LH.db ~= nil end)
     y = y - 26
     if root.skip.lootHighlight then
-        Note(panel, OLD_NOTE:format("Loot Highlight"), x + 30, y)
+        Note(page, OLD_NOTE:format("Loot Highlight"), x + 30, y)
     else
-        Note(panel, "Points out nearby herbs, ore, chests and loot. More settings on its own page.", x + 30, y)
+        Note(page, "Points out nearby herbs, ore, chests and loot. More settings on its own page.", x + 30, y)
     end
     y = y - 30
 
     -- Fresh Ranks
-    Check(panel, "Fresh Ranks",
+    Check(page, "Fresh Ranks",
         "When you learn a new rank, your action buttons with the old rank get the new one. New spells go into an empty slot.",
         x, y,
         function() return root.ModuleOn("freshRanks") end,
@@ -277,50 +315,50 @@ local function BuildMainPage()
         function() return not root.skip.freshRanks end)
     y = y - 26
     if root.skip.freshRanks then
-        Note(panel, OLD_NOTE:format("Fresh Ranks"), x + 30, y)
+        Note(page, OLD_NOTE:format("Fresh Ranks"), x + 30, y)
     else
-        Note(panel, "Keeps your action bars up to date when you learn spells.", x + 30, y)
+        Note(page, "Keeps your action bars up to date when you learn spells.", x + 30, y)
     end
     y = y - 30
 
     -- Cleanse buttons
-    Check(panel, "Cleanse buttons",
+    Check(page, "Cleanse buttons",
         "A small button beside your own frame and each party member's frame. Click it to cast your cleanse spell on that person, no targeting needed.",
         x, y,
         function() return root.ModuleOn("cleanse") end,
         function(v) root.SetModule("cleanse", v) end)
     y = y - 26
-    Note(panel, "Click the button beside a frame to cleanse that person. Left and right click use different spells if your class has two.", x + 30, y)
+    Note(page, "Click the button beside a frame to cleanse that person. Left and right click use different spells if your class has two.", x + 30, y)
     y = y - 34
 
     -- Thanks
-    Check(panel, "Thank people who buff you",
+    Check(page, "Thank people who buff you",
         "Does the /thank emote at players who give you a buff out in the world.",
         x, y,
         function() return root.ModuleOn("thanks") end,
         function(v) root.SetModule("thanks", v) end)
     y = y - 26
-    Note(panel, "Out in the world only: party and raid members are never thanked, and each person at most once a minute.", x + 30, y)
+    Note(page, "Out in the world only: party and raid members are never thanked, and each person at most once a minute.", x + 30, y)
     y = y - 34
 
     -- Undress
-    Check(panel, "Undress button",
+    Check(page, "Undress button",
         "A button beside the character window (C) that puts your gear into your bags and back on again.",
         x, y,
         function() return root.ModuleOn("undress") end,
         function(v) root.SetModule("undress", v) end)
     y = y - 26
-    Note(panel, "For corpse runs: gear in your bags loses no durability when you die. Rings, necklace and trinkets stay on.", x + 30, y)
+    Note(page, "For corpse runs: gear in your bags loses no durability when you die. Rings, necklace and trinkets stay on.", x + 30, y)
     y = y - 34
 
     -- Boat times
-    Check(panel, "Boat times",
+    Check(page, "Boat times",
         "At a dock: when each boat or zeppelin from there leaves. On board: when you arrive. Shown at the top of the screen, only then.",
         x, y,
         function() return root.ModuleOn("boats") end,
         function(v) root.SetModule("boats", v) end)
     y = y - 26
-    local boatsNote = Note(panel, "", x + 30, y)
+    local boatsNote = Note(page, "", x + 30, y)
     refreshers[#refreshers + 1] = function()
         if root.Boats and root.Boats.HasDockWatch() then
             boatsNote:SetText("Times come from DockWatch. You can switch off DockWatch's own map and window in its options (/dw options).")
@@ -331,33 +369,36 @@ local function BuildMainPage()
     y = y - 34
 
     -- Friends list
-    Check(panel, "Tidy friends list",
+    Check(page, "Tidy friends list",
         "Battle.net friends who are online somewhere you can't join them (another rule set, another WoW version, another game) move to the bottom of your friends list. Nobody is removed.",
         x, y,
         function() return root.ModuleOn("friends") end,
         function(v) root.SetModule("friends", v) end)
     y = y - 26
-    Note(panel, "Uses the game's own check behind the invite button. Favorites stay on top. Type /zt friends to see why someone moved.", x + 30, y)
+    Note(page, "Uses the game's own check behind the invite button. Favorites stay on top. Type /zt friends to see why someone moved.", x + 30, y)
     y = y - 34
 
     -- Instance limit
-    Check(panel, "Instance limit",
+    Check(page, "Instance limit",
         "Counts the new dungeon and raid instances you enter, on all your characters. The game allows 5 an hour and 30 a day.",
         x, y,
         function() return root.ModuleOn("instances") end,
         function(v) root.SetModule("instances", v) end)
     y = y - 26
-    Note(panel, "Says in chat which number each instance was, and shows when the next is allowed while you are at the limit. /zt instances lists them.", x + 30, y)
+    Note(page, "Says in chat which number each instance was, and shows when the next is allowed while you are at the limit. /zt instances lists them.", x + 30, y)
     y = y - 34
 
     -- Rested XP
-    Check(panel, "Rested XP per character",
+    Check(page, "Rested XP per character",
         "Remembers each character's rested XP and works out how much more they have rested since you logged out.",
         x, y,
         function() return root.ModuleOn("rested") end,
         function(v) root.SetModule("rested", v) end)
     y = y - 26
-    Note(panel, "Type /zt rested to see every character, most rested first. Log in on each once to add them.", x + 30, y)
+    Note(page, "Type /zt rested to see every character, most rested first. Log in on each once to add them.", x + 30, y)
+    y = y - 34
+
+    page:SetHeight(-y + 16)
 
     panel:SetScript("OnShow", RefreshAll)
     return panel
