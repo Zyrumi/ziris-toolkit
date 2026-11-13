@@ -21,7 +21,7 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - Out of combat, a button lights up with a colored frame and a letter for the debuff type (M magic, C curse, P poison, D disease) when that person has something you can remove. With nothing to remove it is dimmed.
 - In combat the game hides people's debuffs from addons, so the button stays plain. Clicking still works: if there is nothing to remove, the game just says so.
 - Hover a button to see which click does what.
-- The buttons sit on the left of the game's frames and move with them (Edit Mode). Classic and raid-style party frames both work.
+- The buttons sit on the right of the game's frames and move with them (Edit Mode). Classic and raid-style party frames both work.
 - Classes without a cleanse spell don't get buttons.
 
 **Thanks.** Does the /thank emote at a player who gives you a buff out in the world.

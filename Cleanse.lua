@@ -292,9 +292,9 @@ local function CreateButton(frame)
     count = count + 1
     local b = CreateFrame("Button", "ZirisToolkitCleanse" .. count, frame, "SecureUnitButtonTemplate")
     b:SetSize(SIZE, SIZE)
-    -- Left of the frame, so it never covers the debuff icons the game
-    -- shows on the right.
-    b:SetPoint("RIGHT", frame, "LEFT", -3, 0)
+    -- Right of the frame: party frames often sit at the screen's left edge,
+    -- and the game shows buffs and debuffs below the frame, not beside it.
+    b:SetPoint("LEFT", frame, "RIGHT", 3, 0)
     b:SetFrameLevel(frame:GetFrameLevel() + 5)
     b:RegisterForClicks("AnyUp")
 
