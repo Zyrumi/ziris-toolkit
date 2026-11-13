@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Ziri's Toolkit
+## Notes: Small helpers in one addon: Loot Highlight, Fresh Ranks, cleanse buttons and thanking people who buff you.
+## Version: 1.0.0
+## SavedVariables: ZirisToolkitDB, LootHighlightDB
+
+Core.lua
+LootHighlight\LootHighlight.lua
+LootHighlight\Options.lua
+FreshRanks.lua
+Cleanse.lua
+Thanks.lua
