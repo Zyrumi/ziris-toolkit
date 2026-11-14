@@ -53,49 +53,15 @@ local needsSetup = false -- spells or visibility changed during combat
 -- Which spells the player knows
 -------------------------------------------------------------------------------
 
-local function SpellName(id)
-    local get = (C_Spell and C_Spell.GetSpellName) or GetSpellInfo
-    if not get then
-        return nil
-    end
-    local ok, name = pcall(get, id)
-    if ok and type(name) == "string" and name ~= "" and not IsSecret(name) then
-        return name
-    end
-    return nil
-end
-
-local function IsPlayerSpellSafe(id)
-    if not IsPlayerSpell then
-        return false
-    end
-    local ok, known = pcall(IsPlayerSpell, id)
-    return ok and known == true
-end
-
 -- Returns the name to cast for each spell the player knows: the name as it
 -- is written in their spell book (casting by name uses the highest rank).
 local function KnownSpells()
-    local book = {}
-    root.ForEachBookSpell(function(info)
-        local n = info.name
-        if (type(n) ~= "string" or IsSecret(n)) then
-            n = SpellName(info.spellID)
-        end
-        if type(n) == "string" then
-            book[n:lower()] = n
-        end
-    end)
+    local book = root.BookNames()
     local known = {}
     for _, s in ipairs(SPELLS) do
         local castName
         for _, id in ipairs(s.ids) do
-            local n = SpellName(id)
-            if n and book[n:lower()] then
-                castName = book[n:lower()]
-            elseif n and IsPlayerSpellSafe(id) then
-                castName = n
-            end
+            castName = root.KnownSpell(id, nil, book)
             if castName then
                 break
             end
@@ -337,16 +303,7 @@ end
 -- Setup (only possible out of combat: these buttons cast spells)
 -------------------------------------------------------------------------------
 
-local function SpellIcon(name)
-    local get = C_Spell and C_Spell.GetSpellTexture
-    if get then
-        local ok, icon = pcall(get, name)
-        if ok and icon and not IsSecret(icon) then
-            return icon
-        end
-    end
-    return "Interface\\Icons\\Spell_Holy_Renew"
-end
+local SpellIcon = root.SpellIcon
 
 local function Setup()
     if InCombatLockdown() then

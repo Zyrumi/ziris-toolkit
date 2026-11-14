@@ -64,6 +64,14 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - It remembers each character when you play them and works out how much more they have rested since: 5% of a level every 8 hours in an inn or city, a quarter of that elsewhere, up to one and a half levels.
 - Log in on each character once to add it. Characters at max level are left out.
 
+**Buff reminders.** Out of combat, an icon for each of your own buffs, auras and tracking that is missing (after dying, or when it ran out) or about to run out. Click the icon to cast it on yourself. Nothing shows when all is well.
+
+- Covers what your class can cast on itself: paladin auras, blessings and Righteous Fury, priest Fortitude, Inner Fire, Divine Spirit and Shadow Protection, mage Arcane Intellect and armors, druid Mark of the Wild, Omen of Clarity and Thorns, shaman shields, warlock armors, hunter aspects and Trueshot Aura, and tracking (Find Minerals, Find Herbs and the rest).
+- Pick which ones per character on the Buff reminders page under Ziri's Toolkit. Righteous Fury, Thorns and Shadow Protection start switched off.
+- Groups like paladin auras or hunter aspects are fine with any one of them; a click casts the one you had last. Tracking is switched back on through the minimap.
+- "About to run out" means the last tenth of the buff: at least 30 seconds and at most 5 minutes before it ends.
+- Hidden in combat, while dead, on a flight path and (druids, shamans) while shapeshifted. Shift-drag an icon to move the row. `/zt buffs` lists what is watched and how each stands.
+
 ## Coming from Loot Highlight or Fresh Ranks
 
 This addon replaces the separate Loot Highlight and Fresh Ranks addons. While an old one is still installed, the toolkit leaves that part to it and says so in chat once. Remove the old folder to use the toolkit's. Your Loot Highlight settings move over by themselves after you have played once with both installed.

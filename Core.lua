@@ -12,6 +12,7 @@
 --   Friends list    (Friends.lua)
 --   Instance limit  (Instances.lua)
 --   Rested XP       (Rested.lua)
+--   Buff reminders  (Buffs.lua)
 
 local ADDON_NAME, root = ...
 
@@ -28,6 +29,7 @@ local DEFAULTS = {
         friends = true,
         instances = true,
         rested = true,
+        buffs = true,
     },
 }
 
@@ -143,6 +145,38 @@ end
 local PLAYER_BANK = (Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player) or 0
 local SPELL_ITEM = (Enum and Enum.SpellBookItemType and Enum.SpellBookItemType.Spell) or 1
 
+-- The spell's name in the player's language, or nil.
+function root.SpellName(id)
+    local get = (C_Spell and C_Spell.GetSpellName) or GetSpellInfo
+    if not get then
+        return nil
+    end
+    local ok, name = pcall(get, id)
+    if ok and type(name) == "string" and name ~= "" and not root.IsSecret(name) then
+        return name
+    end
+    return nil
+end
+
+function root.IsPlayerSpell(id)
+    if not IsPlayerSpell then
+        return false
+    end
+    local ok, known = pcall(IsPlayerSpell, id)
+    return ok and known == true
+end
+
+function root.SpellIcon(name)
+    local get = C_Spell and C_Spell.GetSpellTexture
+    if get and name then
+        local ok, icon = pcall(get, name)
+        if ok and icon and not root.IsSecret(icon) then
+            return icon
+        end
+    end
+    return "Interface\\Icons\\INV_Misc_QuestionMark"
+end
+
 -- Calls fn(info) for every spell in the player's spell book.
 function root.ForEachBookSpell(fn)
     if not (C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines) then
@@ -164,6 +198,40 @@ function root.ForEachBookSpell(fn)
             end
         end
     end
+end
+
+-- Every spell in the spell book: [lower case name] = name as written there.
+-- Casting by that name uses the highest rank.
+function root.BookNames()
+    local book = {}
+    root.ForEachBookSpell(function(info)
+        local n = info.name
+        if type(n) ~= "string" or root.IsSecret(n) then
+            n = root.SpellName(info.spellID)
+        end
+        if type(n) == "string" then
+            book[n:lower()] = n
+        end
+    end)
+    return book
+end
+
+-- The name to cast if the player knows the spell, else nil. id is the
+-- classic spell ID; fallback is its English name, used if this client
+-- numbers the spell differently.
+function root.KnownSpell(id, fallback, book)
+    book = book or root.BookNames()
+    local n = root.SpellName(id)
+    if n and book[n:lower()] then
+        return book[n:lower()]
+    end
+    if n and root.IsPlayerSpell(id) then
+        return n
+    end
+    if fallback and book[fallback:lower()] then
+        return book[fallback:lower()]
+    end
+    return nil
 end
 
 -------------------------------------------------------------------------------
@@ -268,6 +336,9 @@ local function ScrollArea(panel)
     end)
     return content
 end
+
+-- For parts that build their own settings page.
+root.UI = { Check = Check, Note = Note, ScrollArea = ScrollArea, RefreshAll = RefreshAll }
 
 local function BuildMainPage()
     local panel = CreateFrame("Frame", "ZirisToolkitOptions", UIParent)
@@ -398,6 +469,16 @@ local function BuildMainPage()
     Note(page, "Type /zt rested to see every character, most rested first. Log in on each once to add them.", x + 30, y)
     y = y - 34
 
+    -- Buff reminders
+    Check(page, "Buff reminders",
+        "Out of combat, shows an icon for each of your own buffs, auras and tracking that is missing or about to run out. Click the icon to cast it.",
+        x, y,
+        function() return root.ModuleOn("buffs") end,
+        function(v) root.SetModule("buffs", v) end)
+    y = y - 26
+    Note(page, "Pick which ones on the Buff reminders page under Ziri's Toolkit. Shift-drag an icon to move them. /zt buffs lists them.", x + 30, y)
+    y = y - 34
+
     page:SetHeight(-y + 16)
 
     panel:SetScript("OnShow", RefreshAll)
@@ -502,6 +583,10 @@ SlashCmdList.ZIRISTOOLKIT = function(input)
     end
     if cmd == "instances" and root.Instances then
         root.Instances.Report()
+        return
+    end
+    if cmd == "buffs" and root.Buffs then
+        root.Buffs.Report()
         return
     end
     if cmd == "rested" and root.Rested then
