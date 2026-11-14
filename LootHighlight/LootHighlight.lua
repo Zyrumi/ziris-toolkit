@@ -1495,6 +1495,8 @@ events:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 events:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 -- Learning or dropping a profession changes what "auto" means.
 events:RegisterEvent("SKILL_LINES_CHANGED")
+-- Logging out: hand the game's own settings back (see OnEvent).
+events:RegisterEvent("PLAYER_LOGOUT")
 
 local ticker = CreateFrame("Frame")
 local tickWait = 0
@@ -1589,6 +1591,13 @@ local function OnEvent(event, arg1)
             ApplyCVars()
         end
         Update()
+    elseif event == "PLAYER_LOGOUT" then
+        -- The game saves its settings as you log out. Put your own values
+        -- back first, so nothing stays changed if the addon is removed or
+        -- switched off outside the game. They are set again at next login.
+        if db.enabled then
+            RestoreCVars()
+        end
     elseif event == "PLAYER_REGEN_DISABLED" then
         -- Left open, every corpse with loot would keep an empty health bar
         -- until the fight ends. The game still allows this right now.

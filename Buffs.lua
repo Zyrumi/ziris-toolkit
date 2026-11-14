@@ -489,10 +489,13 @@ end
 local function HideFrom(first)
     for i = first, #buttons do
         local b = buttons[i]
-        b.item = nil
-        b:SetAttribute("type1", nil)
-        b:SetAttribute("spell1", nil)
-        b:Hide()
+        if b.item or b.sig then
+            b.item = nil
+            b.sig = nil
+            b:SetAttribute("type1", nil)
+            b:SetAttribute("spell1", nil)
+            b:Hide()
+        end
     end
 end
 
@@ -510,25 +513,34 @@ local function Layout()
         CreateContainer()
     end
     local list = (root.ModuleOn("buffs") and not Busy()) and Buffs.Needed() or {}
-    local width = #list * SIZE + math.max(0, #list - 1) * GAP
-    container:SetWidth(math.max(SIZE, width))
+    local width = math.max(SIZE, #list * SIZE + math.max(0, #list - 1) * GAP)
+    if container.width ~= width then
+        container.width = width
+        container:SetWidth(width)
+    end
     for i, item in ipairs(list) do
         local b = buttons[i] or CreateButton(i)
         b.item = item
         local st = item.st
-        b:SetAttribute("unit", "player")
-        if st.track then
-            b:SetAttribute("type1", nil) -- PostClick switches it on
-            b:SetAttribute("spell1", nil)
-        else
-            b:SetAttribute("type1", "spell")
-            b:SetAttribute("spell1", st.cast)
+        -- This runs every second: only set the button up again when what
+        -- it casts changed. The countdown under it is all that ticks.
+        local sig = item.group.key .. "|" .. tostring(st.cast) .. "|" .. (st.track and "track" or "cast")
+        if b.sig ~= sig then
+            b.sig = sig
+            b:SetAttribute("unit", "player")
+            if st.track then
+                b:SetAttribute("type1", nil) -- PostClick switches it on
+                b:SetAttribute("spell1", nil)
+            else
+                b:SetAttribute("type1", "spell")
+                b:SetAttribute("spell1", st.cast)
+            end
+            b.icon:SetTexture(root.SpellIcon(st.cast))
+            b:ClearAllPoints()
+            b:SetPoint("LEFT", container, "LEFT", (i - 1) * (SIZE + GAP), 0)
+            b:Show()
         end
-        b.icon:SetTexture(root.SpellIcon(st.cast))
         b.label:SetText(st.state == "soon" and root.Clock(st.left) or "missing")
-        b:ClearAllPoints()
-        b:SetPoint("LEFT", container, "LEFT", (i - 1) * (SIZE + GAP), 0)
-        b:Show()
     end
     HideFrom(#list + 1)
 end

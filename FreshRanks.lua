@@ -150,17 +150,9 @@ end
 -- Spell book
 ---------------------------------------------------------------------------
 
--- Calls fn(info) for every spell in the player's spell book tabs.
-local function ForEachBookSpell(fn)
-    for _, line in ipairs(SkillLines()) do
-        for slot = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
-            local info = BookItem(slot)
-            if info and info.itemType == SPELL_ITEM and type(info.spellID) == "number" then
-                fn(info)
-            end
-        end
-    end
-end
+-- Calls fn(info) for every spell in the player's spell book tabs (shared
+-- with the other parts, see Core.lua).
+local ForEachBookSpell = root.ForEachBookSpell
 
 local function Remember(name, rank)
     if not name then return end

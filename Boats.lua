@@ -177,6 +177,11 @@ local function Update()
 end
 
 local function Start()
+    -- DockWatch loads before us when it is installed; without it there is
+    -- nothing to show, so nothing runs.
+    if type(rawget(_G, "DockWatchAPI")) ~= "table" then
+        return
+    end
     if not frame then
         CreateDisplay()
     end

@@ -4,7 +4,7 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 
 ## The parts
 
-**Loot Highlight.** Points out nearby herbs, ore, chests, quest objects and corpses with loot. It has its own settings page under Ziri's Toolkit, and `/lh` still works.
+**Loot Highlight.** Points out nearby herbs, ore, chests, quest objects and corpses with loot. It has its own settings page under Ziri's Toolkit, and `/lh` still works. It changes a few of the game's own settings while you play and puts yours back every time you log out, so nothing stays changed if you remove the addon.
 
 **Fresh Ranks.** When you learn a higher rank of a spell, your action buttons with the old rank get the new one. Lower ranks you placed on purpose stay. New spells go into an empty slot.
 
