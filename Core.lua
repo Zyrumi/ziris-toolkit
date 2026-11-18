@@ -91,6 +91,8 @@ local function OldAddonActive(folder)
     return false
 end
 
+root.AddonLoaded = OldAddonActive
+
 root.skip = {
     lootHighlight = OldAddonActive("LootHighlight"),
     freshRanks = OldAddonActive("FreshRanks"),

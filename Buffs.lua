@@ -510,6 +510,10 @@ local function ShortUnitName(unit)
 end
 
 local function PartyBlessingState(g, book)
+    -- Raids are PallyPower's: it shares out blessings between all paladins.
+    if Safe(IsInRaid) and root.AddonLoaded("PallyPower") then
+        return { state = "ok", pallyPower = true }
+    end
     local known, any = {}, false
     for key, b in pairs(BLESSINGS) do
         local n = root.KnownSpell(b[1], b[2], book)
@@ -856,7 +860,7 @@ function Buffs.Report()
         elseif st.state == "soon" then
             text = st.name .. (st.who and (" on " .. st.who) or "") .. " runs out in " .. root.Clock(st.left)
         elseif g.party then
-            text = "ok, everyone in reach has theirs"
+            text = st.pallyPower and "left to PallyPower in raids" or "ok, everyone in reach has theirs"
         else
             text = "ok: " .. tostring(st.name) .. (st.left and (", " .. root.Clock(st.left) .. " left") or "")
         end

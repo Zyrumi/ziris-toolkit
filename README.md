@@ -70,6 +70,7 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - Paladins also get **Blessings on your group**: one icon for the next person in your party or raid who is missing your blessing or has under a minute of it left, with their name under it. Click to bless them; the icon then moves on to the next person. Solo, it blesses a friendly player you have targeted. Your own blessing stays with "Blessing on yourself".
   - Who gets what: warriors and rogues Might; mages, warlocks, priests and hunters Wisdom; druids, shamans and paladins by group role (healer Wisdom, damage Might, no role Wisdom); anyone in the tank role Kings. Kings is the fallback when the first choice isn't learned yet.
   - If another paladin already gave someone their first choice, you give the next one. People out of range or offline are skipped until they are back.
+  - In a raid with the PallyPower addon installed, this icon steps aside and leaves blessings to PallyPower, which shares them out between all the paladins.
 - Pick which ones per character on the Buff reminders page under Ziri's Toolkit. Righteous Fury, Thorns and Shadow Protection start switched off.
 - Groups like paladin auras or hunter aspects are fine with any one of them; a click casts the one you had last. Tracking is switched back on through the minimap.
 - "About to run out" means the last tenth of the buff: at least 30 seconds and at most 5 minutes before it ends.
