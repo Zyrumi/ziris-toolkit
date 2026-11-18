@@ -475,11 +475,13 @@ local function BlessingOn(unit, key)
             return nil
         end
         if type(a) == "table" then
-            local exp, src, own = a.expirationTime, a.sourceUnit, a.isFromPlayerOrPlayerPet
-            if IsSecret(exp) or IsSecret(src) or IsSecret(own) then
+            -- Only the caster tells whose it is. (isFromPlayerOrPlayerPet is
+            -- true for any player's buff, not just yours.)
+            local exp, src = a.expirationTime, a.sourceUnit
+            if IsSecret(exp) or IsSecret(src) then
                 return nil
             end
-            local mine = own == true or (type(src) == "string" and Safe(UnitIsUnit, src, "player")) or false
+            local mine = type(src) == "string" and Safe(UnitIsUnit, src, "player") or false
             exp = tonumber(exp) or 0
             return { left = exp == 0 and math.huge or exp - GetTime(), mine = mine and true or false }
         end
