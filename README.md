@@ -74,8 +74,9 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 
 **Flight timer.** While you are on a flight path, a bar at the top of the screen shows where you are going, how long is left and how far along you are.
 
-- The game doesn't tell addons how long a flight takes, so each route is timed the first time you fly it all the way. That first flight shows the time so far; after that the route is known on all your characters.
-- Hover a destination on the flight master's map to see how long the flight takes. A route with stops you have each flown shows "about" and the stops added up; one you haven't timed says so.
+- Hover a destination on the flight master's map to see how long the flight takes.
+- Times come from the flights you take yourself (each route you fly all the way is remembered on all your characters) and, for routes you haven't flown, from flight times shared by the InFlight and FlightCountdown addons. Neither needs to be installed.
+- A time with "about" in front is the stops along the way added up, or worked out from the route's length. A route nobody has timed counts up instead and is remembered when you land.
 - Flights you leave early are not saved. `/zt flights` lists the routes learned so far.
 
 **Threat for tanks.** In combat, small icons so you can see at a glance which mobs in a pack are yours:
@@ -95,6 +96,10 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 ## Coming from Loot Highlight or Fresh Ranks
 
 This addon replaces the separate Loot Highlight and Fresh Ranks addons. While an old one is still installed, the toolkit leaves that part to it and says so in chat once. Remove the old folder to use the toolkit's. Your Loot Highlight settings move over by themselves after you have played once with both installed.
+
+## Thanks
+
+Flight times for routes you haven't flown come from [InFlight](https://github.com/LudiusMaximus/InFlight) (TotalPackage, Deranjata, LudiusMaximus) and [FlightCountdown](https://github.com/burk3/FlightCountdown) (burk3), both under the MIT License; see FlightData.lua.
 
 ## Install
 

@@ -45,6 +45,17 @@ local function Str(fn, ...)
     return nil
 end
 
+local function Num(fn, ...)
+    if type(fn) ~= "function" then
+        return nil
+    end
+    local ok, v = pcall(fn, ...)
+    if ok and type(v) == "number" and not IsSecret(v) then
+        return v
+    end
+    return nil
+end
+
 local function OnTaxi()
     if type(UnitOnTaxi) ~= "function" then
         return false
@@ -58,18 +69,11 @@ local function Short(name)
     return (name:match("^([^,]+)") or name)
 end
 
--- The node you are standing at on the open flight map.
+-- The node you are standing at on the open flight map: name, slot.
 local function HereName()
-    local count = 0
-    if type(NumTaxiNodes) == "function" then
-        local ok, n = pcall(NumTaxiNodes)
-        if ok and type(n) == "number" and not IsSecret(n) then
-            count = n
-        end
-    end
-    for i = 1, count do
+    for i = 1, Num(NumTaxiNodes) or 0 do
         if Str(TaxiNodeGetType, i) == "CURRENT" then
-            return Str(TaxiNodeName, i)
+            return Str(TaxiNodeName, i), i
         end
     end
     return nil
@@ -85,7 +89,9 @@ function Flights.Picked(slot)
     if not to then
         return
     end
-    pending = { key = (from or "?") .. " > " .. to, to = to, picked = GetTime(), known = from ~= nil }
+    local ok, est, kind = pcall(Flights.TimeTo, slot)
+    pending = { key = (from or "?") .. " > " .. to, to = to, picked = GetTime(), known = from ~= nil,
+        est = ok and est or nil, kind = ok and kind or nil }
 end
 
 -- Seconds for a learned route, or nil.
@@ -103,7 +109,10 @@ function Flights.Status(flight, elapsed)
     if flight.known == false then
         return ("%s: %s so far"):format(name, root.Clock(elapsed)), nil
     end
-    local total = Flights.Known(flight.key)
+    local total, about = Flights.Known(flight.key), false
+    if not total and type(flight.est) == "number" and flight.est > 0 then
+        total, about = flight.est, flight.kind == "estimate"
+    end
     if not total then
         return ("%s: first flight on this route, timing it (%s)"):format(name, root.Clock(elapsed)), nil
     end
@@ -111,7 +120,7 @@ function Flights.Status(flight, elapsed)
     if left <= 0 then
         return ("%s: landing any moment"):format(name), 1
     end
-    return ("%s: %s left"):format(name, root.Clock(left)), math.min(1, elapsed / total)
+    return ("%s: %s%s left"):format(name, about and "about " or "", root.Clock(left)), math.min(1, elapsed / total)
 end
 
 -------------------------------------------------------------------------------
@@ -184,7 +193,7 @@ function Flights.Tick()
     if pending then
         if OnTaxi() then
             root.db.flight = { key = pending.key, to = pending.to, known = pending.known,
-                startWall = time(), startClock = GetTime() }
+                est = pending.est, kind = pending.kind, startWall = time(), startClock = GetTime() }
             pending = nil
             flight = root.db.flight
         elseif GetTime() - pending.picked > START_WAIT then
@@ -277,52 +286,108 @@ end)
 -- Flight time on the flight map's tooltip
 -------------------------------------------------------------------------------
 
-local function Num(fn, ...)
-    if type(fn) ~= "function" then
-        return nil
+-- Times from other addons (FlightData.lua) for routes you haven't flown:
+-- InFlight's measured times and FlightCountdown's hop lengths. Both are
+-- keyed by the game's flight point IDs, not names.
+
+-- slot -> flight point ID at the open flight master.
+local function NodeIDs()
+    local ids = {}
+    local mapID = Num(GetTaxiMapID)
+    if not mapID or not (C_TaxiMap and type(C_TaxiMap.GetAllTaxiNodes) == "function") then
+        return ids
     end
-    local ok, v = pcall(fn, ...)
-    if ok and type(v) == "number" and not IsSecret(v) then
-        return v
+    local ok, nodes = pcall(C_TaxiMap.GetAllTaxiNodes, mapID)
+    if ok and type(nodes) == "table" then
+        for _, n in ipairs(nodes) do
+            if type(n) == "table" and type(n.slotIndex) == "number" and type(n.nodeID) == "number"
+                and not IsSecret(n.slotIndex) and not IsSecret(n.nodeID) then
+                ids[n.slotIndex] = n.nodeID
+            end
+        end
     end
-    return nil
+    return ids
 end
 
--- Seconds for the flight from where you stand to `slot`, and whether it is
--- only an estimate (summed from the stops along the way). nil if unknown.
+-- Frequent Flier (Adventure Legacy perk): flights are 20% faster. The other
+-- addons' data is without it; your own learned times already include it.
+local FREQUENT_FLIER_TREE, FREQUENT_FLIER_NODE, FREQUENT_FLIER = 1188, 110300, 1.2
+local function SpeedUp()
+    if not (C_Traits and C_Traits.GetConfigIDByTreeID and C_Traits.GetNodeInfo) then
+        return 1
+    end
+    local ok, config = pcall(C_Traits.GetConfigIDByTreeID, FREQUENT_FLIER_TREE)
+    if not ok or type(config) ~= "number" or IsSecret(config) then
+        return 1
+    end
+    local ok2, info = pcall(C_Traits.GetNodeInfo, config, FREQUENT_FLIER_NODE)
+    if ok2 and type(info) == "table" and type(info.activeRank) == "number"
+        and not IsSecret(info.activeRank) and info.activeRank > 0 then
+        return FREQUENT_FLIER
+    end
+    return 1
+end
+
+-- InFlight's measured time from one flight point to another, or nil.
+local function DataTime(fromID, toID)
+    local data = root.FlightData
+    local faction = Str(UnitFactionGroup, "player")
+    local t = data and faction and fromID and toID and data.times[faction]
+    t = t and t[fromID] and t[fromID][toID]
+    return type(t) == "number" and t or nil
+end
+
+-- A direct hop's length turned into seconds, or nil.
+local function YardsTime(fromID, toID)
+    local data = root.FlightData
+    local y = data and fromID and toID and data.yards[fromID * 10000 + toID]
+    return type(y) == "number" and y / data.speed or nil
+end
+
+-- Seconds for the flight from where you stand to `slot`, and where the time
+-- comes from: "learned" (you flew it), "data" (InFlight's measured time for
+-- the whole route) or "estimate" (the stops added up). nil if unknown.
 function Flights.TimeTo(slot)
-    local here, to = HereName(), Str(TaxiNodeName, slot)
+    local here, hereSlot = HereName()
+    local to = Str(TaxiNodeName, slot)
     if not here or not to then
         return nil
     end
     local known = Flights.Known(here .. " > " .. to)
     if known then
-        return known, false
+        return known, "learned"
     end
-    -- Not flown all the way yet: add up the stops if each one is known.
-    local hops = Num(GetNumRoutes, slot)
-    if not hops or hops < 2 then
-        return nil
+    local ids, speedUp = NodeIDs(), SpeedUp()
+    local data = DataTime(ids[hereSlot], ids[slot])
+    if data then
+        return data / speedUp, "data"
     end
+    -- Add up the stops, each from your own time, InFlight's or its length.
+    local hops = Num(GetNumRoutes, slot) or 1
     local total = 0
     for i = 1, hops do
-        local a = Str(TaxiNodeName, Num(TaxiGetNodeSlot, slot, i, true))
-        local b = Str(TaxiNodeName, Num(TaxiGetNodeSlot, slot, i, false))
-        local t = a and b and Flights.Known(a .. " > " .. b)
+        local a = Num(TaxiGetNodeSlot, slot, i, true) or (hops == 1 and hereSlot)
+        local b = Num(TaxiGetNodeSlot, slot, i, false) or (hops == 1 and slot)
+        local an, bn = a and Str(TaxiNodeName, a), b and Str(TaxiNodeName, b)
+        local t = an and bn and Flights.Known(an .. " > " .. bn)
+        if not t then
+            local other = DataTime(ids[a], ids[b]) or YardsTime(ids[a], ids[b])
+            t = other and other / speedUp
+        end
         if not t then
             return nil
         end
         total = total + t
     end
-    return total, true
+    return total, "estimate"
 end
 
 function Flights.TooltipLine(slot)
-    local seconds, estimate = Flights.TimeTo(slot)
+    local seconds, kind = Flights.TimeTo(slot)
     if not seconds then
         return "Flight time: not timed yet", 0.6, 0.6, 0.6
     end
-    return ("Flight time: %s%s"):format(estimate and "about " or "", root.Clock(seconds)), 1, 1, 1
+    return ("Flight time: %s%s"):format(kind == "estimate" and "about " or "", root.Clock(seconds)), 1, 1, 1
 end
 
 local function AddToTooltip(owner, slot)
