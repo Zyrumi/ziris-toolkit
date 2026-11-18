@@ -611,7 +611,7 @@ local function BuildMainPage()
         function() return root.ModuleOn("healerMana") end,
         function(v) root.SetModule("healerMana", v) end)
     y = y - 26
-    Note(page, "Only people with the healer group role count. Tanking means a tank role, form or stance, or Righteous Fury.", x + 30, y)
+    Note(page, "Only people with the healer group role count. Tanking means a tank role, form or stance, or Righteous Fury. /zt healers shows what it sees.", x + 30, y)
     y = y - 34
 
     -- Disconnects
@@ -740,6 +740,10 @@ SlashCmdList.ZIRISTOOLKIT = function(input)
     end
     if cmd == "flights" and root.Flights then
         root.Flights.Report()
+        return
+    end
+    if cmd == "healers" and root.HealerMana then
+        root.HealerMana.Report()
         return
     end
     if cmd == "rested" and root.Rested then

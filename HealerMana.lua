@@ -89,6 +89,41 @@ function HealerMana.Check()
     end
 end
 
+-- /zt healers: why the warning would or would not show right now.
+function HealerMana.Report()
+    root.Print("Healer mana after combat:")
+    if not root.ModuleOn("healerMana") then
+        root.Print("  switched off in the options")
+    end
+    local tank = root.Threat and root.Threat.IsTank()
+    root.Print(tank and "  you count as a tank" or
+        "  you don't count as a tank right now (needs tank role, defensive stance, bear form or Righteous Fury)")
+    local list = Units()
+    if #list == 0 then
+        root.Print("  not in a group")
+        return
+    end
+    local healers = 0
+    for _, unit in ipairs(list) do
+        if Get(UnitExists, unit) and not Get(UnitIsUnit, unit, "player") then
+            local name = Get(UnitName, unit) or unit
+            local role = Get(UnitGroupRolesAssigned, unit)
+            local cur, max = Get(UnitPower, unit, MANA), Get(UnitPowerMax, unit, MANA)
+            local mana = (type(cur) == "number" and type(max) == "number" and max > 0)
+                and ("%d%% mana"):format(math.floor(cur / max * 100)) or "mana hidden or none"
+            if role == "HEALER" then
+                healers = healers + 1
+            end
+            root.Print(("  %s: role %s, %s"):format(name,
+                role == "HEALER" and "healer" or role == "TANK" and "tank" or role == "DAMAGER" and "damage"
+                    or role == nil and "hidden" or "not set", mana))
+        end
+    end
+    if healers == 0 then
+        root.Print("  nobody has the healer role set, so nothing is checked.")
+    end
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:SetScript("OnEvent", function()
