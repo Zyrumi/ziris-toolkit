@@ -27,6 +27,19 @@ root.Buffs = Buffs
 
 local IsSecret = root.IsSecret
 
+-- With the Tank Swap addon: Righteous Fury only matters in tank mode, and
+-- Tank Swap takes it off in DPS mode on purpose. Without it: always.
+local function TankModeOrNoTankSwap()
+    local ts = _G.TankSwap
+    if type(ts) == "table" and type(ts.IsTank) == "function" then
+        local ok, v = pcall(ts.IsTank)
+        if ok and v ~= nil then
+            return v == true
+        end
+    end
+    return true
+end
+
 -- spells: what to cast, first one is the default. also: buffs from others
 -- that count too (group versions, greater blessings). off: starts switched
 -- off. Spell IDs are the classic rank 1 IDs; the English name is a fallback.
@@ -45,7 +58,7 @@ local GROUPS = {
     -- blessing that suits their class and role. See PartyBlessingState.
     { key = "groupBlessings", label = "Blessings on your group", class = "PALADIN", party = true, spells = {
         { 19740, "Blessing of Might" }, { 19742, "Blessing of Wisdom" }, { 20217, "Blessing of Kings" } } },
-    { key = "righteousFury", label = "Righteous Fury", class = "PALADIN", off = true, spells = {
+    { key = "righteousFury", label = "Righteous Fury", class = "PALADIN", off = true, onlyWhen = TankModeOrNoTankSwap, spells = {
         { 25780, "Righteous Fury" } } },
 
     { key = "fortitude", label = "Power Word: Fortitude", class = "PRIEST", spells = {
@@ -559,7 +572,8 @@ function Buffs.Needed()
     local out = {}
     for _, g in ipairs(MyGroups()) do
         local st = GroupState(g, book, buffs, track, c)
-        if GroupOn(g, c) and (st.state == "missing" or st.state == "soon") then
+        if GroupOn(g, c) and (st.state == "missing" or st.state == "soon")
+            and (not g.onlyWhen or g.onlyWhen()) then
             out[#out + 1] = { group = g, st = st }
         end
     end
@@ -831,6 +845,8 @@ function Buffs.Report()
             text = "not learned yet"
         elseif not GroupOn(g, c) then
             text = "switched off"
+        elseif g.onlyWhen and not g.onlyWhen() then
+            text = "not needed right now (DPS mode)"
         elseif st.state == "unknown" then
             text = "can't tell right now"
         elseif st.state == "missing" then
