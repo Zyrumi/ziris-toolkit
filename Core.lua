@@ -13,6 +13,7 @@
 --   Instance limit  (Instances.lua)
 --   Rested XP       (Rested.lua)
 --   Buff reminders  (Buffs.lua)
+--   Flight timer    (Flights.lua)
 --   Console settings page (Console.lua, the game's own settings, no switch)
 
 local ADDON_NAME, root = ...
@@ -31,6 +32,7 @@ local DEFAULTS = {
         instances = true,
         rested = true,
         buffs = true,
+        flights = true,
     },
 }
 
@@ -563,6 +565,16 @@ local function BuildMainPage()
     Note(page, "Pick which ones on the Buff reminders page under Ziri's Toolkit. Shift-drag an icon to move them. /zt buffs lists them.", x + 30, y)
     y = y - 34
 
+    -- Flight timer
+    Check(page, "Flight timer",
+        "While you are on a flight path, a bar at the top of the screen shows where you are going and how long is left.",
+        x, y,
+        function() return root.ModuleOn("flights") end,
+        function(v) root.SetModule("flights", v) end)
+    y = y - 26
+    Note(page, "Each route is timed the first time you fly it all the way, then known on all your characters. /zt flights lists them.", x + 30, y)
+    y = y - 34
+
     page:SetHeight(-y + 16)
 
     panel:SetScript("OnShow", RefreshAll)
@@ -671,6 +683,10 @@ SlashCmdList.ZIRISTOOLKIT = function(input)
     end
     if cmd == "buffs" and root.Buffs then
         root.Buffs.Report()
+        return
+    end
+    if cmd == "flights" and root.Flights then
+        root.Flights.Report()
         return
     end
     if cmd == "rested" and root.Rested then

@@ -72,6 +72,11 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - "About to run out" means the last tenth of the buff: at least 30 seconds and at most 5 minutes before it ends.
 - Hidden in combat, while dead, on a flight path and (druids, shamans) while shapeshifted. Shift-drag an icon to move the row. `/zt buffs` lists what is watched and how each stands.
 
+**Flight timer.** While you are on a flight path, a bar at the top of the screen shows where you are going, how long is left and how far along you are.
+
+- The game doesn't tell addons how long a flight takes, so each route is timed the first time you fly it all the way. That first flight shows the time so far; after that the route is known on all your characters.
+- Flights you leave early are not saved. `/zt flights` lists the routes learned so far.
+
 **Console settings.** A page under Ziri's Toolkit with sliders and switches for game settings you would otherwise type with `/console`: max camera distance (past the 2.0 the game's Options allow), grass and foliage amount and distance, weather, screen glow, grey screen when dead, spell queue window, nameplate distance, always compare items, shorter loading screens and screenshot quality.
 
 - These are the game's own settings. The page changes them directly and keeps no copy, so they stay as you set them even without the toolkit. "Reset to game defaults" puts them all back.
