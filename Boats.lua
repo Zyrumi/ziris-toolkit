@@ -17,6 +17,10 @@ root.Boats = Boats
 
 local TICK = 1
 local MAX_LINES = 4
+-- DockWatch only counts you as "at a dock" within 150 yards of where the
+-- boat stops; a whole harbor (Stormwind's, say) is bigger than that.
+local NEAR = 300 -- yards
+local WEEK = 7 * 24 * 60 * 60
 
 local frame, lines
 local ticker
@@ -82,6 +86,79 @@ end
 -- What to show
 -------------------------------------------------------------------------------
 
+-- When the servers last restarted for the weekly reset, on DockWatch's clock.
+-- A restart moves every boat's schedule, so a time DockWatch last saw before
+-- it is a guess that can be off by a whole trip. (DockWatch only notices a
+-- restart from the shutdown warning in chat or from riding a route.)
+local function LastRestart(api)
+    local dt = rawget(_G, "C_DateAndTime")
+    local fn = type(dt) == "table" and dt.GetSecondsUntilWeeklyReset
+    local now = Ask(api, "Now")
+    if type(fn) ~= "function" or type(now) ~= "number" then
+        return nil
+    end
+    local ok, left = pcall(fn)
+    if not ok or root.IsSecret(left) or type(left) ~= "number" then
+        return nil
+    end
+    return now + left - WEEK
+end
+
+-- True for a time DockWatch has not confirmed since the last restart.
+local function Outdated(info, restart)
+    if type(info) ~= "table" or not info.approximate or not restart then
+        return false
+    end
+    return type(info.confirmedAt) ~= "number" or info.confirmedAt < restart
+end
+
+-- The docks you are at: DockWatch's own answer, plus any dock within NEAR
+-- yards or named like the part of the zone you are in. Nearest first.
+local function NearbyDocks(docks, context)
+    local found, list = {}, {}
+    local function add(id, distance)
+        if not found[id] then
+            found[id] = { id = id, distance = distance or 0 }
+            list[#list + 1] = found[id]
+        elseif distance and distance < found[id].distance then
+            found[id].distance = distance
+        end
+    end
+    if type(context.atEndpoints) == "table" then
+        for _, id in ipairs(context.atEndpoints) do
+            add(id, 0)
+        end
+    end
+    local ok, p1, p2, _, instance = pcall(UnitPosition, "player")
+    if not ok or root.IsSecret(p1) or root.IsSecret(p2) or root.IsSecret(instance) then
+        p1 = nil
+    end
+    local subzone = GetSubZoneText and GetSubZoneText()
+    if root.IsSecret(subzone) or subzone == "" then
+        subzone = nil
+    end
+    for id, d in pairs(docks) do
+        local pos = d.position
+        if type(p1) == "number" and type(p2) == "number" and type(pos) == "table"
+            and pos.instanceId == instance and pos.x and pos.y then
+            local distance = math.sqrt((pos.x - p1) ^ 2 + (pos.y - p2) ^ 2)
+            if distance <= NEAR then
+                add(id, distance)
+            end
+        end
+        if subzone and d.name == subzone then
+            add(id, NEAR)
+        end
+    end
+    table.sort(list, function(a, b)
+        if a.distance ~= b.distance then
+            return a.distance < b.distance
+        end
+        return a.id < b.id
+    end)
+    return list
+end
+
 -- Returns the lines to show right now (may be empty).
 function Boats.Lines()
     local api = API()
@@ -102,14 +179,13 @@ function Boats.Lines()
     end
 
     local context = Ask(api, "GetPlayerContext")
-    if type(context) ~= "table" or type(context.atEndpoints) ~= "table" then
-        return out
-    end
-    if #context.atEndpoints == 0 then
+    if type(context) ~= "table" or context.riding then
         return out
     end
     local docks = DocksById(api)
-    for _, endpointId in ipairs(context.atEndpoints) do
+    local restart = LastRestart(api)
+    for _, near in ipairs(NearbyDocks(docks, context)) do
+        local endpointId = near.id
         local dock = docks[endpointId]
         local route = dock and dock.routeId and Ask(api, "GetRoute", dock.routeId)
         local direction
@@ -126,7 +202,10 @@ function Boats.Lines()
             local arr = Ask(api, "GetNextArrival", endpointId)
             local leaves = type(dep) == "table" and dep.departsIn
             local arrives = type(arr) == "table" and arr.underway and arr.arrivesIn
-            if arrives and leaves then
+            local outdated = (leaves and Outdated(dep, restart)) or (arrives and Outdated(arr, restart))
+            if outdated then
+                out[#out + 1] = ("%s: not seen since the server restart, time unknown"):format(name)
+            elseif arrives and leaves then
                 out[#out + 1] = ("%s: arrives in %s, leaves in %s"):format(name,
                     When(arrives, arr.approximate), When(leaves, dep.approximate))
             elseif leaves then
