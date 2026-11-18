@@ -75,6 +75,7 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 **Flight timer.** While you are on a flight path, a bar at the top of the screen shows where you are going, how long is left and how far along you are.
 
 - The game doesn't tell addons how long a flight takes, so each route is timed the first time you fly it all the way. That first flight shows the time so far; after that the route is known on all your characters.
+- Hover a destination on the flight master's map to see how long the flight takes. A route with stops you have each flown shows "about" and the stops added up; one you haven't timed says so.
 - Flights you leave early are not saved. `/zt flights` lists the routes learned so far.
 
 **Threat for tanks.** In combat, small icons so you can see at a glance which mobs in a pack are yours:

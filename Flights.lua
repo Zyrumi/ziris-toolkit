@@ -273,6 +273,112 @@ events:SetScript("OnEvent", function()
     pcall(Resume)
 end)
 
+-------------------------------------------------------------------------------
+-- Flight time on the flight map's tooltip
+-------------------------------------------------------------------------------
+
+local function Num(fn, ...)
+    if type(fn) ~= "function" then
+        return nil
+    end
+    local ok, v = pcall(fn, ...)
+    if ok and type(v) == "number" and not IsSecret(v) then
+        return v
+    end
+    return nil
+end
+
+-- Seconds for the flight from where you stand to `slot`, and whether it is
+-- only an estimate (summed from the stops along the way). nil if unknown.
+function Flights.TimeTo(slot)
+    local here, to = HereName(), Str(TaxiNodeName, slot)
+    if not here or not to then
+        return nil
+    end
+    local known = Flights.Known(here .. " > " .. to)
+    if known then
+        return known, false
+    end
+    -- Not flown all the way yet: add up the stops if each one is known.
+    local hops = Num(GetNumRoutes, slot)
+    if not hops or hops < 2 then
+        return nil
+    end
+    local total = 0
+    for i = 1, hops do
+        local a = Str(TaxiNodeName, Num(TaxiGetNodeSlot, slot, i, true))
+        local b = Str(TaxiNodeName, Num(TaxiGetNodeSlot, slot, i, false))
+        local t = a and b and Flights.Known(a .. " > " .. b)
+        if not t then
+            return nil
+        end
+        total = total + t
+    end
+    return total, true
+end
+
+function Flights.TooltipLine(slot)
+    local seconds, estimate = Flights.TimeTo(slot)
+    if not seconds then
+        return "Flight time: not timed yet", 0.6, 0.6, 0.6
+    end
+    return ("Flight time: %s%s"):format(estimate and "about " or "", root.Clock(seconds)), 1, 1, 1
+end
+
+local function AddToTooltip(owner, slot)
+    if not root.ModuleOn("flights") or not slot or GameTooltip:GetOwner() ~= owner then
+        return
+    end
+    local text, r, g, b = Flights.TooltipLine(slot)
+    GameTooltip:AddLine(text, r, g, b)
+    GameTooltip:Show()
+end
+
+-- The new flight map (most flight masters).
+local function HookFlightMap()
+    local mixin = FlightMap_FlightPointPinMixin
+    if type(mixin) ~= "table" or Flights.flightMapHooked then
+        return
+    end
+    Flights.flightMapHooked = true
+    local function OnEnter(pin)
+        local data = rawget(pin, "taxiNodeData")
+        if type(data) == "table" and Enum and Enum.FlightPathState
+            and data.state == Enum.FlightPathState.Reachable then
+            pcall(AddToTooltip, pin, data.slotIndex)
+        end
+    end
+    hooksecurefunc(mixin, "OnMouseEnter", OnEnter)
+    -- Pins made before the hook carry the old function.
+    local map = FlightMapFrame
+    if map and map.EnumeratePinsByTemplate then
+        pcall(function()
+            for pin in map:EnumeratePinsByTemplate("FlightMap_FlightPointPinTemplate") do
+                hooksecurefunc(pin, "OnMouseEnter", OnEnter)
+            end
+        end)
+    end
+end
+
+-- The older taxi map (a few flight masters).
+if type(TaxiNodeOnButtonEnter) == "function" and hooksecurefunc then
+    hooksecurefunc("TaxiNodeOnButtonEnter", function(button)
+        local slot = button and button.GetID and button:GetID()
+        if slot and Str(TaxiNodeGetType, slot) == "REACHABLE" then
+            pcall(AddToTooltip, button, slot)
+        end
+    end)
+end
+
+local loader = CreateFrame("Frame")
+loader:RegisterEvent("ADDON_LOADED")
+loader:SetScript("OnEvent", function(_, _, name)
+    if name == "Blizzard_FlightMap" then
+        pcall(HookFlightMap)
+    end
+end)
+pcall(HookFlightMap) -- in case it was loaded before the toolkit
+
 -- /zt flights: the routes learned so far.
 function Flights.Report()
     local keys = {}
