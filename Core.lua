@@ -14,6 +14,7 @@
 --   Rested XP       (Rested.lua)
 --   Buff reminders  (Buffs.lua)
 --   Flight timer    (Flights.lua)
+--   Threat          (Threat.lua)
 --   Console settings page (Console.lua, the game's own settings, no switch)
 
 local ADDON_NAME, root = ...
@@ -33,6 +34,7 @@ local DEFAULTS = {
         rested = true,
         buffs = true,
         flights = true,
+        threat = true,
     },
 }
 
@@ -574,6 +576,16 @@ local function BuildMainPage()
     y = y - 26
     Note(page, "Each route is timed the first time you fly it all the way, then known on all your characters. /zt flights lists them.", x + 30, y)
     y = y - 34
+
+    -- Threat
+    Check(page, "Threat for tanks",
+        "In combat: a threat number above your target's frame, and text beside each enemy nameplate saying if the mob is yours, slipping, or on someone else (and who).",
+        x, y,
+        function() return root.ModuleOn("threat") end,
+        function(v) root.SetModule("threat", v) end)
+    y = y - 26
+    Note(page, "Needs enemy nameplates on (V). Bosses show words only: the game hides their threat numbers. If the game's own threat number also shows on the target, switch it off with /console threatShowNumeric 0.", x + 30, y)
+    y = y - 44
 
     page:SetHeight(-y + 16)
 

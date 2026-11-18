@@ -77,6 +77,14 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - The game doesn't tell addons how long a flight takes, so each route is timed the first time you fly it all the way. That first flight shows the time so far; after that the route is known on all your characters.
 - Flights you leave early are not saved. `/zt flights` lists the routes learned so far.
 
+**Threat for tanks.** In combat, two small displays:
+
+- Above your target's frame: your threat. While the mob is yours it is your threat as a percentage of the next person's (101% = barely ahead, 150% = safe); otherwise your share of the tank's threat, with "!" in front when you are the tank and have lost it.
+- Beside each enemy nameplate: "+38%" (yours, 38% ahead of the next person), "Slipping" (yours, but about to be taken) or "! Misty" (not yours, and who it is on). Needs enemy nameplates on (V).
+- Bosses show words only: the game hides boss threat numbers from addons.
+- When you are not the tank (no tank role, form, stance or Righteous Fury), nameplates only mark mobs that are on you, with "On you".
+- If the game's own threat number also shows above the target, switch it off with `/console threatShowNumeric 0`.
+
 **Console settings.** A page under Ziri's Toolkit with sliders and switches for game settings you would otherwise type with `/console`: max camera distance (past the 2.0 the game's Options allow), grass and foliage amount and distance, weather, screen glow, grey screen when dead, spell queue window, nameplate distance, always compare items, shorter loading screens and screenshot quality.
 
 - These are the game's own settings. The page changes them directly and keeps no copy, so they stay as you set them even without the toolkit. "Reset to game defaults" puts them all back.
