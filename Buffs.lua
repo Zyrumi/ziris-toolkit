@@ -41,6 +41,10 @@ local GROUPS = {
         also = { { 25782, "Greater Blessing of Might" }, { 25894, "Greater Blessing of Wisdom" },
             { 25898, "Greater Blessing of Kings" }, { 25895, "Greater Blessing of Salvation" },
             { 25890, "Greater Blessing of Light" }, { 25899, "Greater Blessing of Sanctuary" } } },
+    -- Everyone else in your group (your target when solo), each with the
+    -- blessing that suits their class and role. See PartyBlessingState.
+    { key = "groupBlessings", label = "Blessings on your group", class = "PALADIN", party = true, spells = {
+        { 19740, "Blessing of Might" }, { 19742, "Blessing of Wisdom" }, { 20217, "Blessing of Kings" } } },
     { key = "righteousFury", label = "Righteous Fury", class = "PALADIN", off = true, spells = {
         { 25780, "Righteous Fury" } } },
 
@@ -255,6 +259,9 @@ Buffs.WarnAt = WarnAt
 --   cast: spell name to cast; track: minimap indexes to switch on
 --   name: what is (or was) on you, for the tooltip
 local function GroupState(g, book, buffs, track, c)
+    if g.party then
+        return Buffs.PartyBlessingState(g, book)
+    end
     local known, knownList = {}, {}
     for _, s in ipairs(g.spells) do
         local n = root.KnownSpell(s[1], s[2], book)
@@ -350,6 +357,175 @@ local function GroupState(g, book, buffs, track, c)
 end
 Buffs.GroupState = GroupState
 
+-------------------------------------------------------------------------------
+-- Blessings on your group (paladins)
+-------------------------------------------------------------------------------
+
+-- Each blessing with its greater (class-wide) version, which counts too.
+local BLESSINGS = {
+    might = { 19740, "Blessing of Might", 25782, "Greater Blessing of Might" },
+    wisdom = { 19742, "Blessing of Wisdom", 25894, "Greater Blessing of Wisdom" },
+    kings = { 20217, "Blessing of Kings", 25898, "Greater Blessing of Kings" },
+}
+local CLASS_BLESSINGS = {
+    WARRIOR = { "might", "kings" }, ROGUE = { "might", "kings" },
+    MAGE = { "wisdom", "kings" }, WARLOCK = { "wisdom", "kings" },
+    PRIEST = { "wisdom", "kings" }, HUNTER = { "wisdom", "kings" },
+}
+-- Druids, shamans and paladins go by their group role.
+local ROLE_BLESSINGS = { DAMAGER = { "might", "kings" }, HEALER = { "wisdom", "kings" } }
+local BLESSING_REFRESH = 60 -- seconds left that count as "about to run out"
+
+-- What a class and group role want, best first.
+function Buffs.BlessingsFor(class, role)
+    if role == "TANK" then
+        return { "kings", "might" }
+    end
+    return CLASS_BLESSINGS[class] or ROLE_BLESSINGS[role] or { "wisdom", "kings" }
+end
+
+local function Safe(fn, ...)
+    if type(fn) ~= "function" then
+        return nil
+    end
+    local ok, a, b = pcall(fn, ...)
+    if not ok or IsSecret(a) or IsSecret(b) then
+        return nil
+    end
+    return a, b
+end
+
+-- Who to look at: the others in your group, else a friendly player you
+-- have targeted. You are left to "Blessing on yourself".
+local function BlessUnits()
+    local list = {}
+    if Safe(IsInRaid) then
+        for i = 1, 40 do
+            local u = "raid" .. i
+            if Safe(UnitExists, u) and not Safe(UnitIsUnit, u, "player") then
+                list[#list + 1] = u
+            end
+        end
+    elseif Safe(IsInGroup) then
+        for i = 1, 4 do
+            if Safe(UnitExists, "party" .. i) then
+                list[#list + 1] = "party" .. i
+            end
+        end
+    elseif Safe(UnitExists, "target") and Safe(UnitIsPlayer, "target") and Safe(UnitIsFriend, "player", "target")
+        and not Safe(UnitIsUnit, "target", "player") then
+        list[1] = "target"
+    end
+    return list
+end
+
+-- Can a blessing reach them right now?
+local function Reachable(unit, spell)
+    if not Safe(UnitIsConnected, unit) or Safe(UnitIsDeadOrGhost, unit) or not Safe(UnitIsVisible, unit) then
+        return false
+    end
+    if C_Spell and C_Spell.IsSpellInRange then
+        local inRange = Safe(C_Spell.IsSpellInRange, spell, unit)
+        if inRange == false then
+            return false
+        end
+    elseif type(UnitInRange) == "function" then
+        local inRange, checked = Safe(UnitInRange, unit)
+        if checked and not inRange then
+            return false
+        end
+    end
+    return true
+end
+
+-- A blessing (or its greater version) on a unit: { left, mine } or false
+-- when it isn't there; nil when the game won't say.
+local function BlessingOn(unit, key)
+    if not (C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName) then
+        return nil
+    end
+    local b = BLESSINGS[key]
+    for _, s in ipairs({ { b[1], b[2] }, { b[3], b[4] } }) do
+        local ok, a = pcall(C_UnitAuras.GetAuraDataBySpellName, unit, root.SpellName(s[1]) or s[2], "HELPFUL")
+        if not ok or IsSecret(a) then
+            return nil
+        end
+        if type(a) == "table" then
+            local exp, src, own = a.expirationTime, a.sourceUnit, a.isFromPlayerOrPlayerPet
+            if IsSecret(exp) or IsSecret(src) or IsSecret(own) then
+                return nil
+            end
+            local mine = own == true or (type(src) == "string" and Safe(UnitIsUnit, src, "player")) or false
+            exp = tonumber(exp) or 0
+            return { left = exp == 0 and math.huge or exp - GetTime(), mine = mine and true or false }
+        end
+    end
+    return false
+end
+
+-- For one unit: the blessing name to cast and how it stands ("missing",
+-- "soon", "ok"), or nil when there is nothing to do or no telling.
+-- A blessing another paladin already gave them is skipped for the next one.
+local function UnitBlessing(unit, known)
+    local _, class = Safe(UnitClass, unit)
+    local role = Safe(UnitGroupRolesAssigned, unit)
+    for _, key in ipairs(Buffs.BlessingsFor(class, role)) do
+        local cast = known[key]
+        if cast then
+            local on = BlessingOn(unit, key)
+            if on == nil then
+                return nil
+            end
+            if not on then
+                return cast, "missing"
+            end
+            if on.mine then
+                if on.left <= BLESSING_REFRESH then
+                    return cast, "soon", on.left
+                end
+                return cast, "ok"
+            end
+            -- someone else's: try the next one
+        end
+    end
+    return nil
+end
+
+local function ShortUnitName(unit)
+    local name = Safe(UnitName, unit)
+    return type(name) == "string" and name or nil
+end
+
+local function PartyBlessingState(g, book)
+    local known, any = {}, false
+    for key, b in pairs(BLESSINGS) do
+        local n = root.KnownSpell(b[1], b[2], book)
+        if n then
+            known[key], any = n, true
+        end
+    end
+    if not any then
+        return { state = "unlearned" }
+    end
+    local first, waiting = nil, 0
+    for _, unit in ipairs(BlessUnits()) do
+        local cast, state, left = UnitBlessing(unit, known)
+        if cast and state ~= "ok" and Reachable(unit, cast) then
+            waiting = waiting + 1
+            if not first then
+                first = { state = state, cast = cast, name = cast, unit = unit, left = left,
+                    who = ShortUnitName(unit) or unit }
+            end
+        end
+    end
+    if not first then
+        return { state = "ok" }
+    end
+    first.more = waiting - 1
+    return first
+end
+Buffs.PartyBlessingState = PartyBlessingState
+
 -- True when reminders make no sense right now.
 local function Busy()
     local function Is(fn, ...)
@@ -423,7 +599,13 @@ local function ShowTooltip(self)
     end
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:SetText(item.st.name or item.group.label, 1, 1, 1)
-    if item.st.state == "soon" then
+    if item.st.who then
+        GameTooltip:AddLine(("For %s%s."):format(item.st.who,
+            item.st.state == "soon" and (", runs out in " .. root.Clock(item.st.left)) or ""), nil, nil, nil, true)
+        if (item.st.more or 0) > 0 then
+            GameTooltip:AddLine(("%d more after them."):format(item.st.more), nil, nil, nil, true)
+        end
+    elseif item.st.state == "soon" then
         GameTooltip:AddLine("Runs out in " .. root.Clock(item.st.left) .. ".", nil, nil, nil, true)
     else
         GameTooltip:AddLine("Not on you.", nil, nil, nil, true)
@@ -528,9 +710,10 @@ local function Layout()
         -- This runs every second: only set the button up again when what
         -- it casts changed. The countdown under it is all that ticks.
         local sig = item.group.key .. "|" .. tostring(st.cast) .. "|" .. (st.track and "track" or "cast")
+            .. "|" .. (st.unit or "player")
         if b.sig ~= sig then
             b.sig = sig
-            b:SetAttribute("unit", "player")
+            b:SetAttribute("unit", st.unit or "player")
             if st.track then
                 b:SetAttribute("type1", nil) -- PostClick switches it on
                 b:SetAttribute("spell1", nil)
@@ -543,7 +726,11 @@ local function Layout()
             b:SetPoint("LEFT", container, "LEFT", (i - 1) * (SIZE + GAP), 0)
             b:Show()
         end
-        b.label:SetText(st.state == "soon" and root.Clock(st.left) or "missing")
+        if st.who then
+            b.label:SetText(st.who:sub(1, 12))
+        else
+            b.label:SetText(st.state == "soon" and root.Clock(st.left) or "missing")
+        end
     end
     HideFrom(#list + 1)
 end
@@ -648,9 +835,12 @@ function Buffs.Report()
             text = "can't tell right now"
         elseif st.state == "missing" then
             text = "missing, a click casts " .. tostring(st.cast)
+                .. (st.who and (" on " .. st.who) or "")
                 .. (st.track and " (through the minimap)" or "")
         elseif st.state == "soon" then
-            text = st.name .. " runs out in " .. root.Clock(st.left)
+            text = st.name .. (st.who and (" on " .. st.who) or "") .. " runs out in " .. root.Clock(st.left)
+        elseif g.party then
+            text = "ok, everyone in reach has theirs"
         else
             text = "ok: " .. tostring(st.name) .. (st.left and (", " .. root.Clock(st.left) .. " left") or "")
         end
@@ -675,6 +865,8 @@ events:RegisterEvent("PLAYER_UNGHOST")
 events:RegisterEvent("MINIMAP_UPDATE_TRACKING")
 events:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
 events:RegisterUnitEvent("UNIT_AURA", "player")
+events:RegisterEvent("GROUP_ROSTER_UPDATE")
+events:RegisterEvent("PLAYER_TARGET_CHANGED")
 
 local updateQueued = false
 local function QueueUpdate()
