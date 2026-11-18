@@ -167,8 +167,11 @@ function Boats.Lines()
     end
     local out = {}
 
+    -- On board: the arrival countdown. Once it reaches 0:00 the boat is in,
+    -- and the dock's own times show (DockWatch keeps you "aboard" for up to
+    -- 20 seconds after that, until you stand still or walk off).
     local ride = Ask(api, "GetCurrentRide")
-    if type(ride) == "table" then
+    if type(ride) == "table" and not (ride.arrivesIn and ride.arrivesIn <= 0) then
         local to = DockName(DocksById(api), ride.to)
         if ride.arrivesIn then
             out[1] = ("Arriving at %s in %s"):format(to, Clock(ride.arrivesIn))
@@ -179,7 +182,7 @@ function Boats.Lines()
     end
 
     local context = Ask(api, "GetPlayerContext")
-    if type(context) ~= "table" or context.riding then
+    if type(context) ~= "table" then
         return out
     end
     local docks = DocksById(api)
