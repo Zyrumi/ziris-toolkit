@@ -1,6 +1,6 @@
 # Ziri's Toolkit
 
-Small helpers for World of Warcraft: Forever in one addon. Each part can be switched on or off: type `/zt`, or go to Esc > Options > AddOns > Ziri's Toolkit.
+Small helpers for World of Warcraft: Forever in one addon. Each part can be switched on or off: click Ziri's face on the edge of the minimap, type `/zt`, or go to Esc > Options > AddOns > Ziri's Toolkit. Drag the minimap button to move it; it can be hidden on the settings page.
 
 ## The parts
 

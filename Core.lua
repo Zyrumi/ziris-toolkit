@@ -15,6 +15,7 @@
 --   Buff reminders  (Buffs.lua)
 --   Flight timer    (Flights.lua)
 --   Threat          (Threat.lua)
+--   Minimap button  (MinimapButton.lua, opens these settings)
 --   Console settings page (Console.lua, the game's own settings, no switch)
 
 local ADDON_NAME, root = ...
@@ -445,6 +446,18 @@ local function BuildMainPage()
     y = y - 26
     Note(page, "Switch each part on or off. Changes apply at once.", x, y)
     y = y - 28
+
+    -- Minimap button
+    Check(page, "Minimap button",
+        "Ziri's face on the edge of the minimap. Click it to open these settings, drag it to move it.",
+        x, y,
+        function() return root.MinimapButton and root.MinimapButton.IsShown() end,
+        function(v)
+            if root.MinimapButton then
+                root.MinimapButton.SetShown(v)
+            end
+        end)
+    y = y - 36
 
     -- Loot Highlight
     Check(page, "Loot Highlight",

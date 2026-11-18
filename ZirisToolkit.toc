@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: Ziri's Toolkit
 ## Notes: Small helpers in one addon: Loot Highlight, Fresh Ranks, cleanse buttons, thanking people who buff you, an undress button, boat times, a tidier friends list, an instance limit counter, rested XP per character, buff reminders, a flight timer, threat for tanks and a page for console settings.
-## Version: 1.3.0
+## Version: 1.4.0
 ## SavedVariables: ZirisToolkitDB, LootHighlightDB
 ## OptionalDeps: DockWatch
 
@@ -20,3 +20,4 @@ Buffs.lua
 Flights.lua
 Threat.lua
 Console.lua
+MinimapButton.lua
