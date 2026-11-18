@@ -96,7 +96,8 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 
 - Only people with the healer group role count; nobody is guessed from their class.
 - Tanking means a tank role, a tanking form or stance, or Righteous Fury up.
-- `/zt healers` shows what it sees right now: whether you count as a tank, and each person's role and mana.
+- On Forever the game hides other players' mana from addons. Then the game draws the warning itself, one line per healer that only shows when they are under 20%, and the addon never learns the number.
+- `/zt healers` shows what it sees right now: whether you count as a tank and each person's role, plus each healer's mana on screen for a few seconds.
 
 **Disconnect tracker.** In a group, chat says when someone disconnects ("Misty disconnected.") and when they are back ("Misty is back (gone 2:14)."). While anyone is offline, a line at the top of the screen counts up: "Misty disconnected 1:23 ago".
 
