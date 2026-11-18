@@ -243,11 +243,17 @@ local function CreateDisplay()
     frame:Hide()
 end
 
+local errorShown
+
 local function Update()
     if not frame then
         return
     end
     local ok, text = pcall(Boats.Lines)
+    if not ok and not errorShown then
+        errorShown = true
+        root.Print("boat times: " .. tostring(text))
+    end
     if not ok or type(text) ~= "table" or #text == 0 then
         frame:Hide()
         return
@@ -288,6 +294,65 @@ function Boats.Refresh()
         Start()
     else
         Stop()
+    end
+end
+
+-- /zt boats: what the display sees right here, for checking.
+function Boats.Report()
+    local meta = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
+    root.Print(("boat times, toolkit %s"):format(tostring(meta and meta(ADDON_NAME, "Version"))))
+    local api = API()
+    if not api then
+        root.Print(Boats.HasDockWatch() and "DockWatch is not ready yet" or "DockWatch is not installed")
+        return
+    end
+    local ride = Ask(api, "GetCurrentRide")
+    root.Print(("ride: %s"):format(type(ride) == "table"
+        and ("to " .. tostring(ride.to) .. ", arrives in " .. tostring(ride.arrivesIn)) or "none"))
+    local context = Ask(api, "GetPlayerContext")
+    if type(context) == "table" then
+        local at = type(context.atEndpoints) == "table" and table.concat(context.atEndpoints, ", ") or "?"
+        root.Print(("DockWatch: aboard %s, at docks: %s"):format(tostring(context.riding), at ~= "" and at or "none"))
+    end
+    local ok, p1, p2, _, instance = pcall(UnitPosition, "player")
+    local known = ok and not root.IsSecret(p1) and not root.IsSecret(p2) and not root.IsSecret(instance)
+        and type(p1) == "number" and type(p2) == "number"
+    local subzone = GetSubZoneText and GetSubZoneText()
+    if root.IsSecret(subzone) then
+        subzone = "(hidden)"
+    end
+    root.Print(("you: %s, area \"%s\""):format(
+        known and ("%.0f, %.0f in %s"):format(p1, p2, tostring(instance)) or "position hidden",
+        tostring(subzone)))
+    local list = {}
+    for _, d in pairs(DocksById(api)) do
+        local pos = d.position
+        local distance
+        if known and type(pos) == "table" and pos.instanceId == instance and pos.x and pos.y then
+            distance = math.sqrt((pos.x - p1) ^ 2 + (pos.y - p2) ^ 2)
+        end
+        if distance or d.name == subzone then
+            list[#list + 1] = { d = d, distance = distance or math.huge }
+        end
+    end
+    table.sort(list, function(a, b) return a.distance < b.distance end)
+    for i = 1, math.min(3, #list) do
+        local e = list[i]
+        root.Print(("  dock %s (%s): %s"):format(tostring(e.d.name), tostring(e.d.id),
+            e.distance < math.huge and ("%.0f yards"):format(e.distance) or "same area name"))
+    end
+    if #list == 0 then
+        root.Print("  no dock on this continent")
+    end
+    local fine, text = pcall(Boats.Lines)
+    if not fine then
+        root.Print("error: " .. tostring(text))
+    elseif #text == 0 then
+        root.Print("shows: nothing")
+    else
+        for _, line in ipairs(text) do
+            root.Print("shows: " .. line)
+        end
     end
 end
 

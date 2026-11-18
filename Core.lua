@@ -533,7 +533,7 @@ local function BuildMainPage()
     local boatsNote = Note(page, "", x + 30, y)
     refreshers[#refreshers + 1] = function()
         if root.Boats and root.Boats.HasDockWatch() then
-            boatsNote:SetText("Times come from DockWatch. You can switch off DockWatch's own map and window in its options (/dw options).")
+            boatsNote:SetText("Times come from DockWatch. You can switch off DockWatch's own map and window in its options (/dw options). /zt boats shows what it sees where you stand.")
         else
             boatsNote:SetText("Needs the DockWatch addon, which learns and shares the times. Install it to see boat times.")
         end
@@ -708,6 +708,10 @@ SlashCmdList.ZIRISTOOLKIT = function(input)
     end
     if cmd == "buffs" and root.Buffs then
         root.Buffs.Report()
+        return
+    end
+    if cmd == "boats" and root.Boats then
+        root.Boats.Report()
         return
     end
     if cmd == "flights" and root.Flights then
