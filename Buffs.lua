@@ -435,7 +435,10 @@ end
 local function CreateButton(i)
     local b = CreateFrame("Button", "ZirisToolkitBuff" .. i, container, "SecureActionButtonTemplate")
     b:SetSize(SIZE, SIZE)
-    b:RegisterForClicks("AnyUp")
+    -- Both halves of a click: the game casts on the press when "cast on key
+    -- down" is on (the default) and on the release when it is off, and
+    -- ignores the click if the half it wants isn't registered.
+    b:RegisterForClicks("AnyUp", "AnyDown")
     b:RegisterForDrag("LeftButton")
     -- Shift is for moving: a shift-click casts nothing.
     b:SetAttribute("shift-type1", "none")
@@ -462,9 +465,9 @@ local function CreateButton(i)
         SavePoint()
     end)
     -- Tracking is switched on through the minimap, not cast.
-    b:HookScript("PostClick", function(self)
+    b:HookScript("PostClick", function(self, _, down)
         local item = self.item
-        if item and item.st.track and not IsShiftKeyDown() and not InCombatLockdown() then
+        if not down and item and item.st.track and not IsShiftKeyDown() and not InCombatLockdown() then
             for _, index in ipairs(item.st.track) do
                 pcall(C_Minimap.SetTracking, index, true)
             end

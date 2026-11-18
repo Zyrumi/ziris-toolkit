@@ -1,16 +1,16 @@
 -- Ziri's Toolkit: threat
--- Two small displays for tanks:
---   Target: a box above your target's frame with your threat. While you
---   hold the mob it shows your threat as a percentage of the next person's
---   (101% = barely ahead, 150% = safe); otherwise your share of the
---   tank's threat. Same numbers as the game's own threat percentage.
---   Nameplates: text left of each enemy plate in the fight:
---     "+38%"     yours, 38% ahead of the next person
---     "Slipping" yours, but someone is about to take it
---     "! Misty"  not yours: who it is on
---   Bosses: the game hides threat numbers for bosses from addons, so only
---   "Yours" / "Slipping" / "! name" is shown there.
--- When you are not the tank, nameplates only mark mobs that are on you.
+-- Small icons for tanks, only while you are in combat:
+--   green shield       the mob is yours
+--   half shield        yours, but someone is about to take it
+--   red warning + name not yours: who it is on
+-- One above the name of each enemy nameplate in the fight, and one on the
+-- corner of your target's portrait. Hover the target's icon for the
+-- numbers (your lead over the next person, or your share of the holder's
+-- threat). Bosses: the game hides their threat numbers, icons still work.
+--
+-- Solo, a mob on you is no news, so nothing shows then.
+-- When you are not the tank, the warning marks mobs that are on you (in a
+-- group), and the half shield your target when you are close to pulling it.
 
 local ADDON_NAME, root = ...
 
@@ -19,17 +19,17 @@ root.Threat = Threat
 
 local IsSecret = root.IsSecret
 local TICK = 0.25
-
-local COLORS = {
-    mine = { 0.45, 0.95, 0.35 },
-    slipping = { 1.0, 0.75, 0.2 },
-    other = { 1.0, 0.3, 0.3 },
-    onyou = { 1.0, 0.3, 0.3 },
+local MEDIA = "Interface\\AddOns\\ZirisToolkit\\Media\\"
+local ICONS = {
+    mine = MEDIA .. "ThreatMine",
+    slipping = MEDIA .. "ThreatSlipping",
+    loose = MEDIA .. "ThreatLoose",
 }
+local CLOSE = 90 -- not the tank: warn at this share of the tank's threat
 
 local plates = {}   -- [nameplate unit] = true while shown
-local texts = {}    -- [plate frame] = our frame on it
-local box, boxText
+local markers = {}  -- [plate frame] = our marker on it
+local badge         -- the icon on the target's portrait
 local ticker
 
 -------------------------------------------------------------------------------
@@ -43,6 +43,14 @@ local function Num(v)
     return nil
 end
 
+local function Bool(fn, ...)
+    if type(fn) ~= "function" then
+        return false
+    end
+    local ok, v = pcall(fn, ...)
+    return ok and not IsSecret(v) and v == true
+end
+
 -- 0..3 (3 = you hold it securely, 2 = you hold it but are about to lose
 -- it, 1 = not yours but above the holder, 0 = not yours), or nil when the
 -- unit is not on the mob's threat list or the game hides it.
@@ -54,6 +62,7 @@ local function State(unit, mob)
     return ok and Num(s) or nil
 end
 
+-- Your threat as a percentage of the next person's, while you hold it.
 local function LeadPercent(mob)
     if type(UnitThreatPercentageOfLead) ~= "function" then
         return nil
@@ -66,12 +75,13 @@ local function LeadPercent(mob)
     return nil
 end
 
-local function Bool(fn, ...)
-    if type(fn) ~= "function" then
-        return false
+-- Your threat as a percentage of the holder's.
+local function SharePercent(mob)
+    if type(UnitDetailedThreatSituation) ~= "function" then
+        return nil
     end
-    local ok, v = pcall(fn, ...)
-    return ok and not IsSecret(v) and v == true
+    local ok, _, _, _, rawPct = pcall(UnitDetailedThreatSituation, "player", mob)
+    return ok and Num(rawPct) or nil
 end
 
 -- Everyone whose threat counts: you, your pet, your party and their pets
@@ -96,7 +106,20 @@ local function ShortName(unit)
     if ok and type(name) == "string" and not IsSecret(name) then
         return name
     end
-    return "someone"
+    return nil
+end
+
+-- The name of whoever in your group holds the mob (not you), or nil.
+local function Holder(mob)
+    for _, unit in ipairs(Threat.GroupUnits()) do
+        if unit ~= "player" and Bool(UnitExists, unit) and not Bool(UnitIsUnit, unit, "player") then
+            local s = State(unit, mob)
+            if s and s >= 2 then
+                return ShortName(unit) or "someone"
+            end
+        end
+    end
+    return nil
 end
 
 local TANK_FORMS = { [5] = true, [8] = true, [18] = true } -- bear, dire bear, defensive stance
@@ -131,100 +154,78 @@ function Threat.IsTank()
     return false
 end
 
--- What to write next to one enemy's nameplate: text, kind (or nil).
-function Threat.PlateText(mob, tank)
+local function Grouped()
+    return Bool(IsInGroup) or Bool(IsInRaid)
+end
+
+-- What to show for one enemy: kind ("mine", "slipping", "loose") and the
+-- name of who has it (loose only, when known), or nil for nothing.
+function Threat.MobState(mob, tank, grouped)
     if not Bool(UnitCanAttack, "player", mob) or Bool(UnitIsDead, mob) then
         return nil
     end
     local mine = State("player", mob)
     if mine and mine >= 2 then
         if not tank then
-            return "On you", "onyou"
+            return grouped and "loose" or nil
         end
         if mine == 2 then
-            return "Slipping", "slipping"
+            return "slipping"
         end
-        local lead = LeadPercent(mob)
-        if lead then
-            return ("+%d%%"):format(math.floor(lead - 100 + 0.5)), "mine"
-        end
-        return "Yours", "mine"
+        return grouped and "mine" or nil
     end
     if not tank then
         return nil
     end
-    for _, unit in ipairs(Threat.GroupUnits()) do
-        if unit ~= "player" and Bool(UnitExists, unit) and not Bool(UnitIsUnit, unit, "player") then
-            local s = State(unit, mob)
-            if s and s >= 2 then
-                return "! " .. ShortName(unit), "other"
-            end
-        end
+    local who = Holder(mob)
+    if who then
+        return "loose", who
     end
     if mine ~= nil then
         -- you are on its list, but it is on someone outside your group
-        return "! Not on you", "other"
+        return "loose"
     end
     return nil
 end
 
--- Text and kind for the box above the target frame (or nil).
-function Threat.TargetText(tank)
-    if not Bool(UnitExists, "target") or not Bool(UnitCanAttack, "player", "target")
-        or Bool(UnitIsDead, "target") then
+-- The target's icon: kind and the tooltip line, or nil.
+function Threat.TargetState(tank, grouped)
+    if not Bool(UnitExists, "target") then
         return nil
     end
-    local state = State("player", "target")
-    if state == nil then
-        return nil
-    end
-    local isTanking, display
-    if type(UnitDetailedThreatSituation) == "function" then
-        local ok, t, _, _, rawPct = pcall(UnitDetailedThreatSituation, "player", "target")
-        if ok and not IsSecret(t) then
-            isTanking = t == true
-            display = Num(rawPct)
+    local kind, who = Threat.MobState("target", tank, grouped)
+    if not tank and not kind and grouped then
+        local share = SharePercent("target")
+        if share and share >= CLOSE and State("player", "target") then
+            return "slipping", ("Your threat: %d%% of the tank's. Close to pulling it."):format(math.floor(share + 0.5))
         end
     end
-    if isTanking == nil then
-        isTanking = state >= 2
-    end
-    if isTanking then
-        display = LeadPercent("target")
-    end
-    if not display or display == 0 then
-        -- numbers hidden (boss) or nobody else on the list: words only
-        if isTanking then
-            return state == 2 and "Slipping" or "Yours", state == 2 and "slipping" or "mine"
-        end
+    if not kind then
         return nil
     end
-    local text = ("%d%%"):format(math.floor(display + 0.5))
-    if isTanking then
-        return text, state == 2 and "slipping" or "mine"
+    local lead = LeadPercent("target")
+    if kind == "mine" then
+        if lead then
+            return kind, ("Yours, %d%% ahead of the next person."):format(math.floor(lead - 100 + 0.5))
+        end
+        return kind, "Yours."
+    elseif kind == "slipping" then
+        return kind, "Yours, but someone is about to take it."
     end
-    if tank then
-        return "! " .. text, "other"
+    if not tank then
+        return kind, "It is attacking you."
     end
-    -- not the tank: your share of the tank's threat
-    if display >= 90 then
-        return text, "slipping"
+    local share = SharePercent("target")
+    local text = who and ("On " .. who .. ".") or "Not on you."
+    if share then
+        text = text .. (" Your threat: %d%% of theirs."):format(math.floor(share + 0.5))
     end
-    return text, "plain"
+    return kind, text
 end
 
 -------------------------------------------------------------------------------
 -- Display
 -------------------------------------------------------------------------------
-
-local function Color(fs, kind)
-    local c = COLORS[kind]
-    if c then
-        fs:SetTextColor(c[1], c[2], c[3])
-    else
-        fs:SetTextColor(1, 1, 1)
-    end
-end
 
 local function PlateFrame(unit)
     if not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then
@@ -237,68 +238,97 @@ local function PlateFrame(unit)
     return nil
 end
 
-local function TextFor(plate)
-    local t = texts[plate]
-    if t then
-        return t
+local function Field(t, key)
+    if type(t) ~= "table" then
+        return nil
     end
-    t = CreateFrame("Frame", nil, plate)
-    t:SetSize(1, 1)
-    -- Beside the health bar when the plate has the usual layout.
-    local hb
-    local uf = rawget(plate, "UnitFrame")
-    if type(uf) == "table" then
-        hb = rawget(uf, "healthBar")
-        local box = rawget(uf, "HealthBarsContainer")
-        if type(hb) ~= "table" and type(box) == "table" then
-            hb = rawget(box, "healthBar")
-        end
+    local v = rawget(t, key)
+    if type(v) == "table" then
+        return v
     end
-    t:SetPoint("RIGHT", type(hb) == "table" and hb or plate, "LEFT", -4, 0)
-    t.fs = t:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    t.fs:SetPoint("RIGHT", t, "RIGHT")
-    if t.fs.SetFont and STANDARD_TEXT_FONT then
-        t.fs:SetFont(STANDARD_TEXT_FONT, 14, "OUTLINE")
-    end
-    t:EnableMouse(false)
-    texts[plate] = t
-    return t
+    return nil
 end
 
-local function CreateBox()
-    local parent = TargetFrame or UIParent
-    box = CreateFrame("Frame", "ZirisToolkitTargetThreat", parent, "BackdropTemplate")
-    box:SetSize(58, 20)
-    if TargetFrame then
-        box:SetPoint("BOTTOM", TargetFrame, "TOP", -28, -33)
+-- Above the name when the plate has the usual layout, else above the plate.
+local function MarkerFor(plate)
+    local m = markers[plate]
+    if m then
+        return m
+    end
+    m = CreateFrame("Frame", nil, plate)
+    m:SetSize(16, 16)
+    m:EnableMouse(false)
+    local uf = Field(plate, "UnitFrame")
+    local name = Field(uf, "name")
+    local bar = Field(uf, "healthBar") or Field(Field(uf, "HealthBarsContainer"), "healthBar")
+    if name then
+        m:SetPoint("BOTTOM", name, "TOP", 0, 1)
+    elseif bar then
+        m:SetPoint("BOTTOM", bar, "TOP", 0, 14)
     else
-        box:SetPoint("TOP", UIParent, "TOP", 0, -140)
+        m:SetPoint("BOTTOM", plate, "TOP", 0, 0)
     end
-    box:SetFrameStrata("MEDIUM")
-    box:EnableMouse(false)
-    if box.SetBackdrop then
-        box:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            edgeSize = 10,
-            insets = { left = 2, right = 2, top = 2, bottom = 2 },
-        })
-        box:SetBackdropColor(0, 0, 0, 0.75)
+    m.icon = m:CreateTexture(nil, "OVERLAY")
+    m.icon:SetAllPoints()
+    m.who = m:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    m.who:SetPoint("LEFT", m, "RIGHT", 2, 0)
+    if m.who.SetFont and STANDARD_TEXT_FONT then
+        m.who:SetFont(STANDARD_TEXT_FONT, 11, "OUTLINE")
     end
-    boxText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    boxText:SetPoint("CENTER")
-    if boxText.SetFont and STANDARD_TEXT_FONT then
-        boxText:SetFont(STANDARD_TEXT_FONT, 13, "OUTLINE")
+    m.who:SetTextColor(1, 0.45, 0.45)
+    markers[plate] = m
+    return m
+end
+
+local function TargetAnchor()
+    local tf = rawget(_G, "TargetFrame")
+    if type(tf) ~= "table" then
+        return nil
     end
-    box:Hide()
+    local portrait = Field(Field(tf, "TargetFrameContainer"), "Portrait") or Field(tf, "portrait")
+    return tf, portrait
+end
+
+local function CreateBadge()
+    local tf, portrait = TargetAnchor()
+    badge = CreateFrame("Frame", "ZirisToolkitTargetThreat", tf or UIParent)
+    badge:SetSize(22, 22)
+    if portrait then
+        badge:SetPoint("CENTER", portrait, "TOPRIGHT", -4, -4)
+    elseif tf then
+        badge:SetPoint("CENTER", tf, "TOPRIGHT", -40, -12)
+    else
+        badge:SetPoint("TOP", UIParent, "TOP", 0, -140)
+    end
+    badge:SetFrameStrata("MEDIUM")
+    badge:SetFrameLevel(((tf and tf.GetFrameLevel and tf:GetFrameLevel()) or 1) + 10)
+    local bg = badge:CreateTexture(nil, "BACKGROUND")
+    bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    bg:SetAllPoints()
+    badge.icon = badge:CreateTexture(nil, "ARTWORK")
+    badge.icon:SetSize(16, 16)
+    badge.icon:SetPoint("CENTER")
+    badge:EnableMouse(true)
+    badge:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Threat", 1, 1, 1)
+        if self.tip then
+            GameTooltip:AddLine(self.tip, nil, nil, nil, true)
+        end
+        GameTooltip:Show()
+    end)
+    badge:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    badge:Hide()
 end
 
 local function HideAll()
-    for _, t in pairs(texts) do
-        t:Hide()
+    for _, m in pairs(markers) do
+        m:Hide()
     end
-    if box then
-        box:Hide()
+    if badge then
+        badge:Hide()
     end
 end
 
@@ -307,48 +337,41 @@ function Threat.Update()
         HideAll()
         return
     end
-    local tank = Threat.IsTank()
+    local tank, grouped = Threat.IsTank(), Grouped()
 
     -- nameplates
     local used = {}
     for unit in pairs(plates) do
         local plate = PlateFrame(unit)
         if plate then
-            local text, kind = Threat.PlateText(unit, tank)
-            if text then
-                local t = TextFor(plate)
-                t.fs:SetText(text)
-                Color(t.fs, kind)
-                t:Show()
+            local kind, who = Threat.MobState(unit, tank, grouped)
+            if kind then
+                local m = MarkerFor(plate)
+                m.icon:SetTexture(ICONS[kind])
+                m.who:SetText(kind == "loose" and who or "")
+                m:Show()
                 used[plate] = true
             end
         end
     end
-    for plate, t in pairs(texts) do
+    for plate, m in pairs(markers) do
         if not used[plate] then
-            t:Hide()
+            m:Hide()
         end
     end
 
     -- target
-    local text, kind = Threat.TargetText(tank)
-    if text then
-        if not box then
-            CreateBox()
+    local kind, tip = Threat.TargetState(tank, grouped)
+    if kind then
+        if not badge then
+            CreateBadge()
         end
-        boxText:SetText(text)
-        Color(boxText, kind)
-        local c = COLORS[kind]
-        if box.SetBackdropBorderColor then
-            if c then
-                box:SetBackdropBorderColor(c[1], c[2], c[3], 1)
-            else
-                box:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
-            end
-        end
-        box:Show()
-    elseif box then
-        box:Hide()
+        badge.icon:SetTexture(ICONS[kind])
+        badge.kind, badge.tip = kind, tip
+        badge:Show()
+    elseif badge then
+        badge.kind, badge.tip = nil, nil
+        badge:Hide()
     end
 end
 
@@ -408,8 +431,8 @@ events:SetScript("OnEvent", function(_, event, unit)
     elseif event == "NAME_PLATE_UNIT_REMOVED" and type(unit) == "string" then
         plates[unit] = nil
         local plate = PlateFrame(unit)
-        if plate and texts[plate] then
-            texts[plate]:Hide()
+        if plate and markers[plate] then
+            markers[plate]:Hide()
         end
         return
     elseif event == "PLAYER_REGEN_ENABLED" then

@@ -592,12 +592,12 @@ local function BuildMainPage()
 
     -- Threat
     Check(page, "Threat for tanks",
-        "In combat: a threat number above your target's frame, and text beside each enemy nameplate saying if the mob is yours, slipping, or on someone else (and who).",
+        "In combat: a small icon above each enemy nameplate's name and on your target's portrait, showing if the mob is yours, slipping, or on someone else (and who). Nothing shows when you are solo and the mob is on you.",
         x, y,
         function() return root.ModuleOn("threat") end,
         function(v) root.SetModule("threat", v) end)
     y = y - 26
-    Note(page, "Needs enemy nameplates on (V). Bosses show words only: the game hides their threat numbers. If the game's own threat number also shows on the target, switch it off with /console threatShowNumeric 0.", x + 30, y)
+    Note(page, "Shield = yours, half shield = slipping, red warning = on someone else (name beside it). Hover the icon on your target's portrait for numbers. Needs enemy nameplates on (V).", x + 30, y)
     y = y - 44
 
     page:SetHeight(-y + 16)

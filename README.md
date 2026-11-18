@@ -77,13 +77,13 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - The game doesn't tell addons how long a flight takes, so each route is timed the first time you fly it all the way. That first flight shows the time so far; after that the route is known on all your characters.
 - Flights you leave early are not saved. `/zt flights` lists the routes learned so far.
 
-**Threat for tanks.** In combat, two small displays:
+**Threat for tanks.** In combat, small icons so you can see at a glance which mobs in a pack are yours:
 
-- Above your target's frame: your threat. While the mob is yours it is your threat as a percentage of the next person's (101% = barely ahead, 150% = safe); otherwise your share of the tank's threat, with "!" in front when you are the tank and have lost it.
-- Beside each enemy nameplate: "+38%" (yours, 38% ahead of the next person), "Slipping" (yours, but about to be taken) or "! Misty" (not yours, and who it is on). Needs enemy nameplates on (V).
-- Bosses show words only: the game hides boss threat numbers from addons.
-- When you are not the tank (no tank role, form, stance or Righteous Fury), nameplates only mark mobs that are on you, with "On you".
-- If the game's own threat number also shows above the target, switch it off with `/console threatShowNumeric 0`.
+- Green shield: yours. Half shield: yours, but someone is about to take it. Red warning with a name beside it: on someone else, and who.
+- One sits above the name on each enemy nameplate (needs enemy nameplates on, V), and one on the corner of your target's portrait. Hover that one for the numbers: how far ahead of the next person you are, or your share of the holder's threat.
+- Solo, a mob on you is no news, so nothing shows then.
+- Bosses: the game hides their threat numbers from addons; the icons still work.
+- When you are not the tank (no tank role, form, stance or Righteous Fury), the warning marks mobs that are on you in a group, and the half shield shows on your target when you are close to pulling it.
 
 **Console settings.** A page under Ziri's Toolkit with sliders and switches for game settings you would otherwise type with `/console`: max camera distance (past the 2.0 the game's Options allow), grass and foliage amount and distance, weather, screen glow, grey screen when dead, spell queue window, nameplate distance, always compare items, shorter loading screens and screenshot quality.
 
