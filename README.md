@@ -87,10 +87,20 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 **Threat for tanks.** In combat, small icons so you can see at a glance which mobs in a pack are yours:
 
 - Green shield: yours. Half shield: yours, but someone is about to take it. Red warning with a name beside it: on someone else, and who.
-- One sits above the name on each enemy nameplate (needs enemy nameplates on, V), and one on the corner of your target's portrait. Hover that one for the numbers: how far ahead of the next person you are, or your share of the holder's threat.
+- One sits above the name on each enemy nameplate (needs enemy nameplates on, V), and one above your target's name bar, where the game's own threat percentage would be. Hover that one for the numbers: how far ahead of the next person you are, or your share of the holder's threat.
 - Solo, a mob on you is no news, so nothing shows then.
 - Bosses: the game hides their threat numbers from addons; the icons still work.
 - When you are not the tank (no tank role, form, stance or Righteous Fury), the warning marks mobs that are on you in a group, and the half shield shows on your target when you are close to pulling it.
+
+**Healer mana after combat.** When a fight ends and you are tanking in a group, a warning in the middle of the screen if a healer is under 20% mana, for example "Healer low on mana: Holly 14%". Time to wait before the next pull.
+
+- Only people with the healer group role count; nobody is guessed from their class.
+- Tanking means a tank role, a tanking form or stance, or Righteous Fury up.
+
+**Disconnect tracker.** In a group, chat says when someone disconnects ("Misty disconnected.") and when they are back ("Misty is back (gone 2:14)."). While anyone is offline, a line at the top of the screen counts up: "Misty disconnected 1:23 ago".
+
+- Someone who was already offline when you joined the group or reloaded shows as "offline" without a time: the game doesn't say since when.
+- People who leave the group are dropped from the list.
 
 **Console settings.** A page under Ziri's Toolkit with sliders and switches for game settings you would otherwise type with `/console`: max camera distance (past the 2.0 the game's Options allow), grass and foliage amount and distance, weather, screen glow, grey screen when dead, spell queue window, nameplate distance, always compare items, shorter loading screens and screenshot quality.
 

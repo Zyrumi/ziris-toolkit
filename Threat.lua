@@ -293,10 +293,11 @@ local function CreateBadge()
     local tf, portrait = TargetAnchor()
     badge = CreateFrame("Frame", "ZirisToolkitTargetThreat", tf or UIParent)
     badge:SetSize(22, 22)
-    if portrait then
+    if tf then
+        -- Above the name bar, where the game's own threat percentage goes.
+        badge:SetPoint("BOTTOM", tf, "TOP", -28, -33)
+    elseif portrait then
         badge:SetPoint("CENTER", portrait, "TOPRIGHT", -4, -4)
-    elseif tf then
-        badge:SetPoint("CENTER", tf, "TOPRIGHT", -40, -12)
     else
         badge:SetPoint("TOP", UIParent, "TOP", 0, -140)
     end

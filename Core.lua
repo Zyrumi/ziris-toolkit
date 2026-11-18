@@ -36,6 +36,8 @@ local DEFAULTS = {
         buffs = true,
         flights = true,
         threat = true,
+        disconnects = true,
+        healerMana = true,
     },
 }
 
@@ -594,12 +596,32 @@ local function BuildMainPage()
 
     -- Threat
     Check(page, "Threat for tanks",
-        "In combat: a small icon above each enemy nameplate's name and on your target's portrait, showing if the mob is yours, slipping, or on someone else (and who). Nothing shows when you are solo and the mob is on you.",
+        "In combat: a small icon above each enemy nameplate's name and above your target's name bar, showing if the mob is yours, slipping, or on someone else (and who). Nothing shows when you are solo and the mob is on you.",
         x, y,
         function() return root.ModuleOn("threat") end,
         function(v) root.SetModule("threat", v) end)
     y = y - 26
-    Note(page, "Shield = yours, half shield = slipping, red warning = on someone else (name beside it). Hover the icon on your target's portrait for numbers. Needs enemy nameplates on (V).", x + 30, y)
+    Note(page, "Shield = yours, half shield = slipping, red warning = on someone else (name beside it). Hover the icon above your target's name for numbers. Needs enemy nameplates on (V).", x + 30, y)
+    y = y - 44
+
+    -- Healer mana after combat
+    Check(page, "Healer mana after combat",
+        "When a fight ends and you are tanking, a warning in the middle of the screen if a healer is under 20% mana.",
+        x, y,
+        function() return root.ModuleOn("healerMana") end,
+        function(v) root.SetModule("healerMana", v) end)
+    y = y - 26
+    Note(page, "Only people with the healer group role count. Tanking means a tank role, form or stance, or Righteous Fury.", x + 30, y)
+    y = y - 34
+
+    -- Disconnects
+    Check(page, "Disconnect tracker",
+        "In a group: chat says when someone disconnects and when they are back, and a line at the top of the screen counts how long they have been gone.",
+        x, y,
+        function() return root.ModuleOn("disconnects") end,
+        function(v) root.SetModule("disconnects", v) end)
+    y = y - 26
+    Note(page, "Someone already offline when you join or reload shows as \"offline\" without a time: the game doesn't say since when.", x + 30, y)
     y = y - 44
 
     page:SetHeight(-y + 16)
