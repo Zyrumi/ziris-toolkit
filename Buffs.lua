@@ -380,21 +380,32 @@ local BLESSINGS = {
     wisdom = { 19742, "Blessing of Wisdom", 25894, "Greater Blessing of Wisdom" },
     kings = { 20217, "Blessing of Kings", 25898, "Greater Blessing of Kings" },
 }
+-- Might is melee attack power only on Forever, so hunters never get it.
 local CLASS_BLESSINGS = {
     WARRIOR = { "might", "kings" }, ROGUE = { "might", "kings" },
-    MAGE = { "wisdom", "kings" }, WARLOCK = { "wisdom", "kings" },
-    PRIEST = { "wisdom", "kings" }, HUNTER = { "wisdom", "kings" },
+    HUNTER = { "kings", "wisdom" },
+    MAGE = { "wisdom", "kings" }, WARLOCK = { "wisdom", "kings" }, PRIEST = { "wisdom", "kings" },
 }
 -- Druids, shamans and paladins go by their group role.
 local ROLE_BLESSINGS = { DAMAGER = { "might", "kings" }, HEALER = { "wisdom", "kings" } }
+local BLESSING_ORDER = { "might", "wisdom", "kings" } -- the right-click cycle
 local BLESSING_REFRESH = 60 -- seconds left that count as "about to run out"
 
--- What a class and group role want, best first.
-function Buffs.BlessingsFor(class, role)
+-- What a class and group role want, best first. Blessings you haven't
+-- learned are passed over, so "kings" first means "Kings if you have it".
+-- melee: a druid in cat or bear form (for when there is no role to go by).
+function Buffs.BlessingsFor(class, role, melee)
     if role == "TANK" then
         return { "kings", "might" }
     end
-    return CLASS_BLESSINGS[class] or ROLE_BLESSINGS[role] or { "wisdom", "kings" }
+    if CLASS_BLESSINGS[class] then
+        return CLASS_BLESSINGS[class]
+    end
+    if ROLE_BLESSINGS[role] then
+        return ROLE_BLESSINGS[role]
+    end
+    -- No role: a shaman's or paladin's spec can't be seen from outside.
+    return melee and { "kings", "might" } or { "kings", "wisdom" }
 end
 
 local function Safe(fn, ...)
@@ -479,10 +490,43 @@ end
 -- For one unit: the blessing name to cast and how it stands ("missing",
 -- "soon", "ok"), or nil when there is nothing to do or no telling.
 -- A blessing another paladin already gave them is skipped for the next one.
+-- Your own pick for someone (right-click on the icon), by name.
+local function FullUnitName(unit)
+    local name, realm = Safe(UnitName, unit)
+    if type(name) ~= "string" then
+        return nil
+    end
+    if type(realm) == "string" and realm ~= "" then
+        return name .. "-" .. realm
+    end
+    return name
+end
+
+local function Picks()
+    local c = CharData()
+    if not c then
+        return nil
+    end
+    if type(c.blessPicks) ~= "table" then
+        c.blessPicks = {}
+    end
+    return c.blessPicks
+end
+
+local function PickFor(unit)
+    local picks, name = Picks(), FullUnitName(unit)
+    local p = picks and name and picks[name]
+    return BLESSINGS[p] and p or nil
+end
+
 local function UnitBlessing(unit, known)
     local _, class = Safe(UnitClass, unit)
     local role = Safe(UnitGroupRolesAssigned, unit)
-    for _, key in ipairs(Buffs.BlessingsFor(class, role)) do
+    local power = Safe(UnitPowerType, unit)
+    local melee = class == "DRUID" and (power == 1 or power == 3) -- rage or energy: bear or cat
+    local pick = PickFor(unit)
+    local list = pick and known[pick] and { pick } or Buffs.BlessingsFor(class, role, melee)
+    for _, key in ipairs(list) do
         local cast = known[key]
         if cast then
             local on = BlessingOn(unit, key)
@@ -531,7 +575,7 @@ local function PartyBlessingState(g, book)
             waiting = waiting + 1
             if not first then
                 first = { state = state, cast = cast, name = cast, unit = unit, left = left,
-                    who = ShortUnitName(unit) or unit }
+                    who = ShortUnitName(unit) or unit, picked = PickFor(unit) ~= nil, known = known }
             end
         end
     end
@@ -542,6 +586,34 @@ local function PartyBlessingState(g, book)
     return first
 end
 Buffs.PartyBlessingState = PartyBlessingState
+
+-- Right-click on the icon: the next blessing for the person it shows, then
+-- back to automatic. Returns the new pick (nil = automatic).
+function Buffs.CycleBlessing(st)
+    local picks, name = Picks(), st and st.unit and FullUnitName(st.unit)
+    if not picks or not name or type(st.known) ~= "table" then
+        return nil
+    end
+    local cycle = {}
+    for _, key in ipairs(BLESSING_ORDER) do
+        if st.known[key] then
+            cycle[#cycle + 1] = key
+        end
+    end
+    local current, nextKey = picks[name], cycle[1]
+    if current then
+        nextKey = nil -- after the last one: automatic again
+        for i, key in ipairs(cycle) do
+            if key == current then
+                nextKey = cycle[i + 1]
+            end
+        end
+    end
+    picks[name] = nextKey
+    local label = nextKey and st.known[nextKey] or "automatic"
+    root.Print(("%s: %s from now on."):format(st.who or name, label))
+    return nextKey
+end
 
 -- True when reminders make no sense right now.
 local function Busy()
@@ -623,6 +695,8 @@ local function ShowTooltip(self)
         if (item.st.more or 0) > 0 then
             GameTooltip:AddLine(("%d more after them."):format(item.st.more), nil, nil, nil, true)
         end
+        GameTooltip:AddLine(item.st.picked and "Your pick for them. Right-click for another, or back to automatic."
+            or "Picked by their class and role. Right-click to pick another for them.", 0.8, 0.8, 0.8, true)
     elseif item.st.state == "soon" then
         GameTooltip:AddLine("Runs out in " .. root.Clock(item.st.left) .. ".", nil, nil, nil, true)
     else
@@ -665,9 +739,19 @@ local function CreateButton(i)
         SavePoint()
     end)
     -- Tracking is switched on through the minimap, not cast.
-    b:HookScript("PostClick", function(self, _, down)
+    -- Right-click on the group blessing icon: pick another blessing for
+    -- that person (only left-click casts: there is no type2).
+    b:HookScript("PostClick", function(self, button, down)
         local item = self.item
-        if not down and item and item.st.track and not IsShiftKeyDown() and not InCombatLockdown() then
+        if down or not item or IsShiftKeyDown() or InCombatLockdown() then
+            return
+        end
+        if button == "RightButton" and item.group.party then
+            Buffs.CycleBlessing(item.st)
+            Buffs.Update()
+            return
+        end
+        if item.st.track then
             for _, index in ipairs(item.st.track) do
                 pcall(C_Minimap.SetTracking, index, true)
             end
