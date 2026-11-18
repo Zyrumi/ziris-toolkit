@@ -13,6 +13,7 @@
 --   Instance limit  (Instances.lua)
 --   Rested XP       (Rested.lua)
 --   Buff reminders  (Buffs.lua)
+--   Console settings page (Console.lua, the game's own settings, no switch)
 
 local ADDON_NAME, root = ...
 
@@ -337,8 +338,91 @@ local function ScrollArea(panel)
     return content
 end
 
+-- Plain slider built from game textures (no template needed).
+-- opts (all optional):
+--   format(v)  text after the label, default v .. unit
+--   unit       added after the value when there is no format
+--   refreshers list to register the refresh function in (default: Core's)
+--   after()    called after set(v)
+local function Slider(parent, label, tip, x, y, minV, maxV, step, get, set, opts)
+    opts = opts or {}
+    local title = parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    title:SetPoint("TOPLEFT", x + 4, y)
+    local s = CreateFrame("Slider", nil, parent, "BackdropTemplate")
+    s:SetOrientation("HORIZONTAL")
+    s:SetSize(280, 17)
+    s:SetPoint("TOPLEFT", x + 4, y - 18)
+    s:SetBackdrop({
+        bgFile = "Interface\\Buttons\\UI-SliderBar-Background",
+        edgeFile = "Interface\\Buttons\\UI-SliderBar-Border",
+        tile = true, tileSize = 8, edgeSize = 8,
+        insets = { left = 3, right = 3, top = 6, bottom = 6 },
+    })
+    s:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+    s:SetMinMaxValues(minV, maxV)
+    s:SetValueStep(step)
+    if s.SetObeyStepOnDrag then s:SetObeyStepOnDrag(true) end
+    s:EnableMouseWheel(true)
+
+    local loading = false
+    local function ShowValue(v)
+        local text = opts.format and opts.format(v) or (tostring(v) .. (opts.unit or ""))
+        title:SetText(label .. ": " .. text)
+    end
+    s:SetScript("OnValueChanged", function(self, v)
+        v = math.floor(v / step + 0.5) * step
+        ShowValue(v)
+        local current = get()
+        if not loading and (type(current) ~= "number" or math.abs(v - current) > step / 1000) then
+            set(v)
+            if opts.after then
+                opts.after()
+            end
+        end
+    end)
+    s:SetScript("OnMouseWheel", function(self, delta)
+        self:SetValue(self:GetValue() + delta * step)
+    end)
+    AddTooltip(s, label, tip)
+    local list = opts.refreshers or refreshers
+    list[#list + 1] = function()
+        local v = get()
+        if type(v) ~= "number" then
+            return
+        end
+        loading = true
+        s:SetValue(v)
+        ShowValue(v)
+        loading = false
+    end
+    return s, title
+end
+
+local function Button(parent, text, tip, x, y, width, onClick)
+    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+    b:SetSize(width or 140, 22)
+    b:SetPoint("TOPLEFT", x, y)
+    b:SetText(text)
+    b:SetScript("OnClick", function()
+        onClick()
+        RefreshAll()
+    end)
+    AddTooltip(b, text, tip)
+    return b
+end
+
+local function Heading(parent, text, x, y)
+    local fs = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    fs:SetPoint("TOPLEFT", x, y)
+    fs:SetText(text)
+    return fs
+end
+
 -- For parts that build their own settings page.
-root.UI = { Check = Check, Note = Note, ScrollArea = ScrollArea, RefreshAll = RefreshAll }
+root.UI = {
+    Check = Check, Note = Note, ScrollArea = ScrollArea, RefreshAll = RefreshAll,
+    Slider = Slider, Button = Button, Heading = Heading, AddTooltip = AddTooltip,
+}
 
 local function BuildMainPage()
     local panel = CreateFrame("Frame", "ZirisToolkitOptions", UIParent)

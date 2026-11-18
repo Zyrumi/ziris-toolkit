@@ -72,6 +72,12 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - "About to run out" means the last tenth of the buff: at least 30 seconds and at most 5 minutes before it ends.
 - Hidden in combat, while dead, on a flight path and (druids, shamans) while shapeshifted. Shift-drag an icon to move the row. `/zt buffs` lists what is watched and how each stands.
 
+**Console settings.** A page under Ziri's Toolkit with sliders and switches for game settings you would otherwise type with `/console`: max camera distance (past the 2.0 the game's Options allow), grass and foliage amount and distance, weather, screen glow, grey screen when dead, spell queue window, nameplate distance, always compare items, shorter loading screens and screenshot quality.
+
+- These are the game's own settings. The page changes them directly and keeps no copy, so they stay as you set them even without the toolkit. "Reset to game defaults" puts them all back.
+- Settings your game version doesn't have are left off the page. If the game rounds or limits a value, the slider shows what the game kept.
+- The game's Ground Clutter graphics option sets the grass and foliage values again when you change it.
+
 ## Coming from Loot Highlight or Fresh Ranks
 
 This addon replaces the separate Loot Highlight and Fresh Ranks addons. While an old one is still installed, the toolkit leaves that part to it and says so in chat once. Remove the old folder to use the toolkit's. Your Loot Highlight settings move over by themselves after you have played once with both installed.

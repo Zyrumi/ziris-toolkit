@@ -124,48 +124,10 @@ local function Choice(parent, label, tip, x, y, values, names, get, set, indent)
 end
 
 -- Plain slider built from game textures (no template needed).
+-- The shared slider from Core, refreshed with this page's widgets.
 local function Slider(parent, label, tip, x, y, minV, maxV, step, get, set, unit)
-    local title = parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    title:SetPoint("TOPLEFT", x + 4, y)
-    local s = CreateFrame("Slider", nil, parent, "BackdropTemplate")
-    s:SetOrientation("HORIZONTAL")
-    s:SetSize(280, 17)
-    s:SetPoint("TOPLEFT", x + 4, y - 18)
-    s:SetBackdrop({
-        bgFile = "Interface\\Buttons\\UI-SliderBar-Background",
-        edgeFile = "Interface\\Buttons\\UI-SliderBar-Border",
-        tile = true, tileSize = 8, edgeSize = 8,
-        insets = { left = 3, right = 3, top = 6, bottom = 6 },
-    })
-    s:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
-    s:SetMinMaxValues(minV, maxV)
-    s:SetValueStep(step)
-    if s.SetObeyStepOnDrag then s:SetObeyStepOnDrag(true) end
-    s:EnableMouseWheel(true)
-
-    local loading = false
-    local function ShowValue(v)
-        title:SetText(label .. ": " .. v .. (unit or ""))
-    end
-    s:SetScript("OnValueChanged", function(self, v)
-        v = math.floor(v / step + 0.5) * step
-        ShowValue(v)
-        if not loading and v ~= get() then
-            set(v)
-            Changed()
-        end
-    end)
-    s:SetScript("OnMouseWheel", function(self, delta)
-        self:SetValue(self:GetValue() + delta * step)
-    end)
-    AddTooltip(s, label, tip)
-    refreshers[#refreshers + 1] = function()
-        loading = true
-        s:SetValue(get())
-        ShowValue(get())
-        loading = false
-    end
-    return s
+    return (root.UI.Slider(parent, label, tip, x, y, minV, maxV, step, get, set,
+        { unit = unit, refreshers = refreshers, after = Changed }))
 end
 
 local function Button(parent, text, tip, x, y, width, onClick)
