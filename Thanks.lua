@@ -34,16 +34,31 @@ local function Safe(fn, ...)
     return v
 end
 
--- "First Surname" on Forever (no realms), plain name elsewhere.
-local function FullName(unit)
-    local ok, name, second = pcall(UnitName, unit)
-    if not ok or IsSecret(name) or IsSecret(second) or type(name) ~= "string" or name == "" then
+-- The name the /thank emote finds them by. Forever names ("Helene
+-- Fischer") are unique in the whole region, so the realm the game also
+-- gives must be left off; glued on, nobody is found and the emote goes to
+-- everyone around you. Elsewhere a player from another realm is
+-- "Name-Realm".
+local function TargetName(name, realm)
+    if IsSecret(name) or IsSecret(realm) or type(name) ~= "string" or name == "" then
         return nil
     end
-    if type(second) == "string" and second ~= "" then
-        return name .. " " .. second
+    if type(realm) ~= "string" or realm == "" or name:find(" ", 1, true) or Safe(RegionalUniqueNamesEnabled) then
+        return name
     end
-    return name
+    local own = Safe(GetNormalizedRealmName)
+    if realm == own then
+        return name
+    end
+    return name .. "-" .. realm
+end
+
+local function FullName(unit)
+    local ok, name, realm = pcall(UnitName, unit)
+    if not ok then
+        return nil
+    end
+    return TargetName(name, realm)
 end
 
 local function InGroup(guid)
@@ -93,12 +108,10 @@ local function CasterByGUID(aura)
     if not GetPlayerInfoByGUID then
         return nil, "the game didn't say who cast it"
     end
-    local ok, _, _, _, _, _, name, second = pcall(GetPlayerInfoByGUID, guid)
-    if not ok or IsSecret(name) or IsSecret(second) or type(name) ~= "string" or name == "" then
+    local ok, _, _, _, _, _, name, realm = pcall(GetPlayerInfoByGUID, guid)
+    name = ok and TargetName(name, realm) or nil
+    if not name then
         return nil, "the game knows who but won't name them"
-    end
-    if type(second) == "string" and second ~= "" then
-        return name .. " " .. second
     end
     return name
 end
