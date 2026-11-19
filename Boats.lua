@@ -112,9 +112,23 @@ local function Outdated(info, restart)
     return type(info.confirmedAt) ~= "number" or info.confirmedAt < restart
 end
 
+-- The tram runs in its own map, so in the cities only the area with its
+-- entrance counts as being at the tram. Area name -> tram stop name.
+local TRAM_ENTRANCES = {
+    ["Tinker Town"] = "Ironforge",
+    ["Dwarven District"] = "Stormwind",
+}
+
+local function IsTram(api, dock)
+    local route = dock.routeId and Ask(api, "GetRoute", dock.routeId)
+    return type(route) == "table" and route.vehicle == "tram"
+end
+
 -- The docks you are at: DockWatch's own answer, plus any dock within NEAR
--- yards or named like the part of the zone you are in. Nearest first.
-local function NearbyDocks(docks, context)
+-- yards or named like the part of the zone you are in (on the same map, so
+-- the tram's "Ironforge" stop doesn't match the whole city), plus the tram
+-- from its entrance areas. Nearest first.
+local function NearbyDocks(api, docks, context)
     local found, list = {}, {}
     local function add(id, distance)
         if not found[id] then
@@ -137,16 +151,21 @@ local function NearbyDocks(docks, context)
     if root.IsSecret(subzone) or subzone == "" then
         subzone = nil
     end
+    local tramStop = subzone and TRAM_ENTRANCES[subzone]
     for id, d in pairs(docks) do
         local pos = d.position
-        if type(p1) == "number" and type(p2) == "number" and type(pos) == "table"
-            and pos.instanceId == instance and pos.x and pos.y then
+        local sameMap = type(p1) == "number" and type(p2) == "number" and type(pos) == "table"
+            and pos.instanceId == instance
+        if sameMap and pos.x and pos.y then
             local distance = math.sqrt((pos.x - p1) ^ 2 + (pos.y - p2) ^ 2)
             if distance <= NEAR then
                 add(id, distance)
             end
         end
-        if subzone and d.name == subzone then
+        if sameMap and subzone and d.name == subzone then
+            add(id, NEAR)
+        end
+        if tramStop and d.name == tramStop and IsTram(api, d) then
             add(id, NEAR)
         end
     end
@@ -187,7 +206,7 @@ function Boats.Lines()
     end
     local docks = DocksById(api)
     local restart = LastRestart(api)
-    for _, near in ipairs(NearbyDocks(docks, context)) do
+    for _, near in ipairs(NearbyDocks(api, docks, context)) do
         local endpointId = near.id
         local dock = docks[endpointId]
         local route = dock and dock.routeId and Ask(api, "GetRoute", dock.routeId)
@@ -205,14 +224,19 @@ function Boats.Lines()
             local arr = Ask(api, "GetNextArrival", endpointId)
             local leaves = type(dep) == "table" and dep.departsIn
             local arrives = type(arr) == "table" and arr.underway and arr.arrivesIn
-            local outdated = (leaves and Outdated(dep, restart)) or (arrives and Outdated(arr, restart))
+            -- The tram has only DockWatch's built-in timetable until someone
+            -- rides it, and comes every minute or so: its guess is shown.
+            local tram = type(route) == "table" and route.vehicle == "tram"
+            local outdated = not tram
+                and ((leaves and Outdated(dep, restart)) or (arrives and Outdated(arr, restart)))
+            local track = leaves and type(dep.laneName) == "string" and (" (" .. dep.laneName .. ")") or ""
             if outdated then
                 out[#out + 1] = ("%s: not seen since the server restart, time unknown"):format(name)
             elseif arrives and leaves then
-                out[#out + 1] = ("%s: arrives in %s, leaves in %s"):format(name,
-                    When(arrives, arr.approximate), When(leaves, dep.approximate))
+                out[#out + 1] = ("%s: arrives in %s, leaves in %s%s"):format(name,
+                    When(arrives, arr.approximate), When(leaves, dep.approximate), track)
             elseif leaves then
-                out[#out + 1] = ("%s leaves in %s"):format(name, When(leaves, dep.approximate))
+                out[#out + 1] = ("%s leaves in %s%s"):format(name, When(leaves, dep.approximate), track)
             elseif arrives then
                 out[#out + 1] = ("%s arrives in %s"):format(name, When(arrives, arr.approximate))
             else
