@@ -514,7 +514,7 @@ local function BuildMainPage()
         function() return root.ModuleOn("thanks") end,
         function(v) root.SetModule("thanks", v) end)
     y = y - 26
-    Note(page, "Out in the world only: party and raid members are never thanked, and each person at most once a minute.", x + 30, y)
+    Note(page, "Out in the world only: party and raid members are never thanked, and each person at most once a minute. /zt thanks shows the last buffs and why.", x + 30, y)
     y = y - 34
 
     -- Undress
@@ -740,6 +740,10 @@ SlashCmdList.ZIRISTOOLKIT = function(input)
     end
     if cmd == "flights" and root.Flights then
         root.Flights.Report()
+        return
+    end
+    if cmd == "thanks" and root.ThanksReport then
+        root.ThanksReport()
         return
     end
     if cmd == "healers" and root.HealerMana then

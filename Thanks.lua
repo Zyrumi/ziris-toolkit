@@ -18,6 +18,8 @@ local DELAY_MIN, DELAY_MAX = 1, 2.5 -- a short pause feels less robotic
 local IsSecret = root.IsSecret
 
 local lastThanked = {}    -- [name] = GetTime() of the last thanks
+local seen = {}           -- the last buffs from others and what became of them, newest last
+local SEEN_MAX = 8
 local listening = false
 local settleToken = 0
 
@@ -58,33 +60,80 @@ local function Emote(target)
     end
 end
 
--- Returns the caster's name if this new buff deserves a thank you.
+-- Returns the caster's name if this new buff deserves a thank you, else
+-- nil and why not (nil reason: not worth listing, like a debuff).
 local function ThankWorthy(aura)
     if type(aura) ~= "table" or IsSecret(aura) then
-        return nil
+        return nil, "hidden by the game"
     end
     local helpful, fromPlayer = aura.isHelpful, aura.isFromPlayerOrPlayerPet
-    if IsSecret(helpful) or IsSecret(fromPlayer) or helpful ~= true or fromPlayer ~= true then
+    if IsSecret(helpful) or IsSecret(fromPlayer) then
+        return nil, "hidden by the game"
+    end
+    if helpful ~= true then
         return nil
     end
+    if fromPlayer ~= true then
+        return nil, "not from a player"
+    end
     local unit = aura.sourceUnit
-    if IsSecret(unit) or type(unit) ~= "string" then
-        return nil
+    if IsSecret(unit) then
+        return nil, "hidden by the game"
+    end
+    if type(unit) == "string" and (Safe(UnitIsUnit, unit, "player") or Safe(UnitIsUnit, unit, "pet")) then
+        return nil -- your own
     end
     local duration = aura.duration
     if IsSecret(duration) or type(duration) ~= "number" or duration < MIN_DURATION then
-        return nil -- also skips buffs without an end (0)
+        return nil, "too short to be a gift" -- also buffs without an end (0)
     end
-    if Safe(UnitIsUnit, unit, "player") or Safe(UnitIsUnit, unit, "pet") then
-        return nil
+    if type(unit) ~= "string" then
+        return nil, "the game didn't say who cast it"
     end
     if not Safe(UnitIsPlayer, unit) then
-        return nil -- pets and NPCs
+        return nil, "from a pet or NPC"
     end
     if Safe(UnitInParty, unit) or Safe(UnitInRaid, unit) then
-        return nil -- in your group: no thanks spam
+        return nil, "from your group" -- no thanks spam
     end
-    return FullName(unit)
+    local name = FullName(unit)
+    if not name then
+        return nil, "hidden by the game"
+    end
+    return name
+end
+
+local function Remember(aura, what)
+    local name = type(aura) == "table" and not IsSecret(aura) and aura.name
+    if IsSecret(name) or type(name) ~= "string" then
+        name = "a buff"
+    end
+    seen[#seen + 1] = { at = GetTime(), spell = name, what = what }
+    if #seen > SEEN_MAX then
+        table.remove(seen, 1)
+    end
+end
+
+-- /zt thanks: the last buffs from others and why each was or wasn't thanked.
+function root.ThanksReport()
+    if not root.ModuleOn("thanks") then
+        root.Print("Thanks is switched off in the options.")
+    end
+    if #seen == 0 then
+        root.Print("Thanks: no buffs from others seen since you logged in.")
+        return
+    end
+    root.Print("Thanks, the last buffs on you:")
+    local now, unnamed = GetTime(), false
+    for _, e in ipairs(seen) do
+        root.Print(("  %s ago: %s, %s"):format(root.Clock(now - e.at), e.spell, e.what))
+        if e.what == "not thanked: the game didn't say who cast it" then
+            unnamed = true
+        end
+    end
+    if unnamed then
+        root.Print("  The game only names who buffed you when it can see them as a unit: your target, mouseover, or a player whose nameplate is showing.")
+    end
 end
 
 local function OnAura(info)
@@ -106,8 +155,17 @@ local function OnAura(info)
     end
     local now = GetTime()
     for _, aura in ipairs(added) do
-        local ok, name = pcall(ThankWorthy, aura)
-        if ok and name and (not lastThanked[name] or now - lastThanked[name] >= COOLDOWN) then
+        local ok, name, why = pcall(ThankWorthy, aura)
+        if not ok then
+            Remember(aura, "not thanked: something went wrong")
+        elseif not name then
+            if why then
+                Remember(aura, "not thanked: " .. why)
+            end
+        elseif lastThanked[name] and now - lastThanked[name] < COOLDOWN then
+            Remember(aura, "from " .. name .. ", already thanked this minute")
+        else
+            Remember(aura, "thanked " .. name)
             lastThanked[name] = now -- several buffs at once: one thank you
             local delay = DELAY_MIN + math.random() * (DELAY_MAX - DELAY_MIN)
             C_Timer.After(delay, function()
