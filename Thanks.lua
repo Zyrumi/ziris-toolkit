@@ -46,6 +46,63 @@ local function FullName(unit)
     return name
 end
 
+local function InGroup(guid)
+    local prefix, count
+    if Safe(IsInRaid) then
+        prefix, count = "raid", 40
+    elseif Safe(IsInGroup) then
+        prefix, count = "party", 4
+    else
+        return false
+    end
+    for i = 1, count do
+        if Safe(UnitGUID, prefix .. i) == guid then
+            return true
+        end
+    end
+    return false
+end
+
+-- When the game can't point at the caster as a unit (a stranger you are
+-- not targeting), the buff itself still knows who cast it: its caster's
+-- id, which turns into a name. Returns name, or nil and why not.
+local function CasterByGUID(aura)
+    local id = aura.auraInstanceID
+    if IsSecret(id) or type(id) ~= "number" or not (C_UnitAuras and C_UnitAuras.GetAuraCasterGUID) then
+        return nil, "the game didn't say who cast it"
+    end
+    local guid = Safe(C_UnitAuras.GetAuraCasterGUID, "player", id)
+    if type(guid) ~= "string" or guid == "" then
+        return nil, "the game didn't say who cast it"
+    end
+    if guid == Safe(UnitGUID, "player") then
+        return nil -- your own
+    end
+    local isPlayer
+    if C_PlayerInfo and C_PlayerInfo.GUIDIsPlayer then
+        isPlayer = Safe(C_PlayerInfo.GUIDIsPlayer, guid)
+    else
+        isPlayer = guid:find("^Player%-") ~= nil
+    end
+    if not isPlayer then
+        return nil, "from a pet or NPC"
+    end
+    if InGroup(guid) then
+        return nil, "from your group"
+    end
+    if not GetPlayerInfoByGUID then
+        return nil, "the game didn't say who cast it"
+    end
+    local ok, _, _, _, _, _, name, second = pcall(GetPlayerInfoByGUID, guid)
+    if not ok or IsSecret(name) or IsSecret(second) or type(name) ~= "string" or name == "" then
+        return nil, "the game knows who but won't name them"
+    end
+    if type(second) == "string" and second ~= "" then
+        return name .. " " .. second
+    end
+    return name
+end
+
 local function Emote(target)
     if C_ChatInfo and C_ChatInfo.InChatMessagingLockdown then
         local locked = Safe(C_ChatInfo.InChatMessagingLockdown)
@@ -88,7 +145,7 @@ local function ThankWorthy(aura)
         return nil, "too short to be a gift" -- also buffs without an end (0)
     end
     if type(unit) ~= "string" then
-        return nil, "the game didn't say who cast it"
+        return CasterByGUID(aura)
     end
     if not Safe(UnitIsPlayer, unit) then
         return nil, "from a pet or NPC"
@@ -124,15 +181,9 @@ function root.ThanksReport()
         return
     end
     root.Print("Thanks, the last buffs on you:")
-    local now, unnamed = GetTime(), false
+    local now = GetTime()
     for _, e in ipairs(seen) do
         root.Print(("  %s ago: %s, %s"):format(root.Clock(now - e.at), e.spell, e.what))
-        if e.what == "not thanked: the game didn't say who cast it" then
-            unnamed = true
-        end
-    end
-    if unnamed then
-        root.Print("  The game only names who buffed you when it can see them as a unit: your target, mouseover, or a player whose nameplate is showing.")
     end
 end
 

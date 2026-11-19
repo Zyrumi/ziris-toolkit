@@ -29,7 +29,6 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - Party and raid members are never thanked.
 - Each person at most once a minute, and several buffs at once get one thank you.
 - Short buffs (like a proc from someone's heal) and buffs during combat are skipped.
-- The game only says who buffed you when it can see them as a unit: your target, your mouseover, or a player whose nameplate is showing. Otherwise there is nobody to thank.
 - `/zt thanks` lists the last buffs from others and why each was or wasn't thanked.
 
 **Undress.** A button on the top edge of your character window (C), at the right end. For corpse runs, when you might die again and again: gear in your bags loses no durability.
