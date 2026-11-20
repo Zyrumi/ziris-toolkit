@@ -1,4 +1,4 @@
--- Ziri's Toolkit: photo mode (and the AFK screen's settings, see AfkScreen.lua)
+-- Ziri's Toolkit: photo mode (the AFK screen in AfkScreen.lua uses it too)
 -- When you hide the game's interface with its own Toggle UI key (Alt+Z
 -- unless you changed it), this also hides what Alt+Z leaves in the world:
 -- names over players, NPCs and pets, nameplates, chat bubbles and the
@@ -57,11 +57,7 @@ Photo.GROUPS = {
 
 local DEFAULTS = {
     names = true, nameplates = true, bubbles = true, numbers = true, spin = false,
-    afk = true,   -- AFK screen when you go AFK (AfkScreen.lua)
-    card = false, -- the same screen with the Toggle UI key
-    -- How the AFK screen looks (see AfkScreen.lua)
-    layout = "one", side = "right", size = 3, facing = "in", anim = "wave",
-    center = "logo", crest = true,
+    card = false, -- the AFK screen's bars with the Toggle UI key too (AfkScreen.lua)
 }
 Photo.DEFAULTS = DEFAULTS
 
@@ -183,16 +179,17 @@ function Photo.IsActive()
     return active
 end
 
--- reason "afk": started by the AFK screen, which always circles the
--- camera and shows its card.
+-- reason "afk": started by the AFK screen (its own switch), which hides
+-- everything on the list, circles the camera and shows its bars.
 function Photo.Enter(reason)
-    if active or not root.ModuleOn("photo") then
+    local afk = reason == "afk"
+    if active or not root.ModuleOn(afk and "afk" or "photo") then
         return
     end
     active = true
     local p = DB()
     for _, group in ipairs(Photo.GROUPS) do
-        if p[group.key] then
+        if afk or p[group.key] then
             for _, cvar in ipairs(group.cvars) do
                 if p.saved[cvar] == nil then
                     local value = Read(cvar)
@@ -204,10 +201,10 @@ function Photo.Enter(reason)
         end
     end
     Sync()
-    if p.spin or reason == "afk" then
+    if p.spin or afk then
         StartSpin()
     end
-    if (p.card or reason == "afk") and root.AfkScreen then
+    if (p.card or afk) and root.AfkScreen then
         root.AfkScreen.ShowCard(reason)
     end
 end
@@ -336,70 +333,15 @@ local function BuildPage()
         function() return root.ModuleOn("photo") end)
     y = y - 38
 
-    UI.Heading(page, "AFK screen", x, y)
+    UI.Heading(page, "Bars", x, y)
     y = y - 22
-    UI.Check(page, "Show when you go AFK",
-        "When you go AFK (/afk, or after a few minutes without doing anything), the interface hides, the camera circles your character and a card at the bottom shows your character, name, guild and how long you have been away. Move, or press any key that does something, and it ends.",
-        x, y,
-        function() return p.afk end,
-        function(v) p.afk = v end,
-        function() return root.ModuleOn("photo") end)
-    y = y - 30
-    UI.Check(page, "Show the card with the Toggle UI key too",
-        "The same card (your character, name, guild, and where you are) also shows when you hide the interface yourself.",
+    UI.Check(page, "Show the AFK screen's bars too",
+        "When you hide the interface yourself, the bars from the AFK screen show as well: your character, name, guild and where you are. They look the way you set them on the AFK screen page.",
         x, y,
         function() return p.card end,
         function(v) p.card = v end,
         function() return root.ModuleOn("photo") end)
-    y = y - 30
-    UI.Note(page, "A fight ends the AFK screen at once. The things checked above are hidden on the AFK screen too. Type /afk to try the look.", x, y)
-    y = y - 36
-
-    local A = root.AfkScreen
-    local on = function() return root.ModuleOn("photo") end
-    local function Pick(label, tip, key, options)
-        local h = UI.Choice(page, label, tip, x, y, options,
-            function() return p[key] end,
-            function(v) p[key] = v end, on)
-        y = y - h - 6
-    end
-    Pick("Layout", "How the bars on the AFK screen are laid out.", "layout", {
-        { value = "one", text = "Bottom bar", width = 150,
-          tip = "One bar along the bottom: your name on the left, away timer, date and time on the right." },
-        { value = "two", text = "Top and bottom bars", width = 170,
-          tip = "Date and time in a bar at the top, your name in the middle of a bar at the bottom." },
-    })
-    Pick("Character", "Where your character stands on the AFK screen.", "side", {
-        { value = "left", text = "Left" },
-        { value = "right", text = "Right" },
-        { value = "off", text = "None" },
-    })
-    UI.Slider(page, "Character size", "How big your character is on the AFK screen.", x, y, 1, 4, 1,
-        function() return p.size end,
-        function(v) p.size = math.floor(v + 0.5) end,
-        { format = function(v) return A and A.SIZE_NAMES[math.floor(v + 0.5)] or tostring(v) end })
-    y = y - 52
-    Pick("Facing", "Which way your character looks.", "facing", {
-        { value = "in", text = "To the middle", width = 140 },
-        { value = "front", text = "At you" },
-        { value = "out", text = "Away" },
-    })
-    local anims = {}
-    for _, key in ipairs(A and A.ANIM_ORDER or {}) do
-        anims[#anims + 1] = { value = key, text = A.ANIMS[key].text, width = 170 }
-    end
-    Pick("What the character does", "Your character on the AFK screen only; you don't do it in the game.", "anim", anims)
-    Pick("Picture in the middle", "The picture in the middle of the AFK screen.", "center", {
-        { value = "logo", text = "Game logo", tip = "The game's own World of Warcraft: Forever logo." },
-        { value = "class", text = "Class icon" },
-        { value = "faction", text = "Alliance or Horde", width = 150 },
-        { value = "none", text = "Nothing" },
-    })
-    UI.Check(page, "Alliance or Horde crest by your name", "Your faction's crest next to your name on the AFK screen.",
-        x, y,
-        function() return p.crest end,
-        function(v) p.crest = v end, on)
-    y = y - 36
+    y = y - 40
 
     page:SetHeight(-y + 16)
     panel:SetScript("OnShow", UI.RefreshAll)

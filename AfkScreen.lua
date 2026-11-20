@@ -6,10 +6,10 @@
 -- long you have been away. Coming back (moving, casting, chatting: the game
 -- ends AFK) or a fight starting puts everything back.
 --
--- The card can also show with the Toggle UI key (setting on the Photo mode
--- page); then it shows where you are instead of the away timer.
--- Settings live in ZirisToolkitDB.photo: afk, card, and the look (layout,
--- side, size, facing, anim, center, crest), all on the Photo mode page.
+-- Its own part with its own switch ("afk") and settings page; the look is in
+-- ZirisToolkitDB.afk. The bars can also show with the Toggle UI key
+-- (ZirisToolkitDB.photo.card, on the Photo mode page); then they show where
+-- you are instead of the away timer.
 
 local ADDON_NAME, root = ...
 
@@ -82,12 +82,48 @@ AfkScreen.ANIMS = {
 -- Model facing in radians; positive turns it toward the right of the screen.
 AfkScreen.FACE_ANGLE = 0.6
 
-local function Opt(key)
-    local p = root.db and root.db.photo
-    if type(p) == "table" and p[key] ~= nil then
-        return p[key]
+AfkScreen.DEFAULTS = {
+    layout = "one", side = "right", size = 3, facing = "in", anim = "wave",
+    center = "logo", crest = true,
+}
+
+-- ZirisToolkitDB.afk. The first time, takes over what was set when these
+-- settings still lived under photo mode.
+local function DB()
+    local db = root.db
+    if type(db.afk) ~= "table" then
+        db.afk = {}
+        local old = db.photo
+        if type(old) == "table" then
+            for key in pairs(AfkScreen.DEFAULTS) do
+                if old[key] ~= nil then
+                    db.afk[key] = old[key]
+                    old[key] = nil
+                end
+            end
+            if old.afk == false then
+                db.modules.afk = false
+            end
+            old.afk = nil
+        end
     end
-    return root.Photo and root.Photo.DEFAULTS[key]
+    for k, v in pairs(AfkScreen.DEFAULTS) do
+        if db.afk[k] == nil then
+            db.afk[k] = v
+        end
+    end
+    return db.afk
+end
+AfkScreen.DB = DB
+
+local function Opt(key)
+    if root.db then
+        local v = DB()[key]
+        if v ~= nil then
+            return v
+        end
+    end
+    return AfkScreen.DEFAULTS[key]
 end
 
 -- Which animation the model should play t seconds after the card showed.
@@ -494,8 +530,7 @@ end
 -------------------------------------------------------------------------------
 
 local function Wanted()
-    local db = root.db
-    return db and root.ModuleOn("photo") and type(db.photo) == "table" and db.photo.afk == true
+    return root.db ~= nil and root.ModuleOn("afk")
 end
 
 function AfkScreen.Start()
@@ -540,11 +575,91 @@ function AfkScreen.IsShown()
     return ours
 end
 
+root.OnModuleChanged("afk", function(on)
+    if not on then
+        AfkScreen.Stop()
+    end
+end)
+
+-------------------------------------------------------------------------------
+-- Settings page
+-------------------------------------------------------------------------------
+
+local function BuildPage()
+    local UI = root.UI
+    local panel = CreateFrame("Frame", "ZirisToolkitAfkOptions", UIParent)
+    panel:Hide()
+    local page = UI.ScrollArea(panel)
+    local x, y = 16, -16
+
+    local title = page:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", x, y)
+    title:SetText("AFK screen")
+    y = y - 26
+    UI.Note(page, "When you go AFK, the interface hides, names and nameplates go, the camera circles your character and bars show who you are and how long you have been away. Moving, the Toggle UI key (Alt+Z) or a fight brings everything back. Switch it on or off on the Ziri's Toolkit page. Type /afk to try the look.", x, y)
+    y = y - 58
+
+    local p = DB()
+    local on = function() return root.ModuleOn("afk") end
+    local function Pick(label, tip, key, options)
+        local h = UI.Choice(page, label, tip, x, y, options,
+            function() return p[key] end,
+            function(v) p[key] = v end, on)
+        y = y - h - 6
+    end
+    Pick("Layout", "How the bars on the AFK screen are laid out.", "layout", {
+        { value = "one", text = "Bottom bar", width = 150,
+          tip = "One bar along the bottom: your name on the left, away timer, date and time on the right." },
+        { value = "two", text = "Top and bottom bars", width = 170,
+          tip = "Date and time in a bar at the top, your name in the middle of a bar at the bottom." },
+    })
+    Pick("Character", "Where your character stands on the AFK screen.", "side", {
+        { value = "left", text = "Left" },
+        { value = "right", text = "Right" },
+        { value = "off", text = "None" },
+    })
+    UI.Slider(page, "Character size", "How big your character is on the AFK screen.", x, y, 1, 4, 1,
+        function() return p.size end,
+        function(v) p.size = math.floor(v + 0.5) end,
+        { format = function(v) return AfkScreen.SIZE_NAMES[math.floor(v + 0.5)] or tostring(v) end })
+    y = y - 52
+    Pick("Facing", "Which way your character looks.", "facing", {
+        { value = "in", text = "To the middle", width = 140 },
+        { value = "front", text = "At you" },
+        { value = "out", text = "Away" },
+    })
+    local anims = {}
+    for _, key in ipairs(AfkScreen.ANIM_ORDER) do
+        anims[#anims + 1] = { value = key, text = AfkScreen.ANIMS[key].text, width = 170 }
+    end
+    Pick("What the character does", "Your character on the AFK screen only; you don't do it in the game.", "anim", anims)
+    Pick("Picture in the middle", "The picture in the middle of the AFK screen.", "center", {
+        { value = "logo", text = "Game logo", tip = "The game's own World of Warcraft: Forever logo." },
+        { value = "class", text = "Class icon" },
+        { value = "faction", text = "Alliance or Horde", width = 150 },
+        { value = "none", text = "Nothing" },
+    })
+    UI.Check(page, "Alliance or Horde crest by your name", "Your faction's crest next to your name on the AFK screen.",
+        x, y,
+        function() return p.crest end,
+        function(v) p.crest = v end, on)
+    y = y - 40
+
+    page:SetHeight(-y + 16)
+    panel:SetScript("OnShow", UI.RefreshAll)
+    AfkScreen.page = root.RegisterSubPage(panel, "AFK screen")
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:SetScript("OnEvent", function(_, event, unit)
     if event == "PLAYER_LOGIN" then
+        DB()
+        local ok, err = pcall(BuildPage)
+        if not ok then
+            root.Print("the AFK screen page could not be built: " .. tostring(err))
+        end
         if events.RegisterUnitEvent then
             events:RegisterUnitEvent("PLAYER_FLAGS_CHANGED", "player")
         else

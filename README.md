@@ -108,11 +108,11 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - If the game closes while the interface is hidden, your settings go back at the next login.
 - `/zt photo` lists the settings it changes and their values right now.
 
-**AFK screen.** Part of photo mode. When you go AFK (`/afk`, or after a few minutes without doing anything), the interface hides the same way, the camera slowly circles your character, and a bar along the bottom of the screen shows your character in 3D, your name, level, race and class, your guild, how long you have been away and the time.
+**AFK screen.** When you go AFK (`/afk`, or after a few minutes without doing anything), the interface hides, names, nameplates, chat bubbles and damage numbers go as in photo mode, the camera slowly circles your character, and a bar along the bottom of the screen shows your character in 3D, your name, level, race and class, your guild, how long you have been away and the time.
 
 - Moving, casting or chatting ends AFK and brings everything back, and so does the Toggle UI key. A fight ends it at once.
-- It can be switched off on the Photo mode page. There you can also have the same card show when you press the Toggle UI key yourself; then it shows where you are instead of the away timer.
-- Its look is set on the Photo mode page: one bar along the bottom or a bar at the top and the bottom; your character on the left, the right or not at all, how big, which way it faces and what it does (waves, stands, turns, dances, sits, sleeps or cheers); the game's logo, your class icon or your Alliance or Horde crest in the middle; and a crest by your name. Type `/afk` to see it.
+- It has its own switch on the main page and works whether photo mode is on or not. Photo mode's page has a switch to show the same bars when you press the Toggle UI key yourself; then they show where you are instead of the away timer.
+- Its look is set on the AFK screen page under Ziri's Toolkit: one bar along the bottom or a bar at the top and the bottom; your character on the left, the right or not at all, how big, which way it faces and what it does (waves, stands, turns, dances, sits, sleeps or cheers); the game's logo, your class icon or your Alliance or Horde crest in the middle; and a crest by your name. Type `/afk` to see it.
 - In dungeons and raids the game may not tell addons that you are AFK; then the AFK screen doesn't come up.
 
 **Console settings.** A page under Ziri's Toolkit with sliders and switches for game settings you would otherwise type with `/console`: max camera distance (past the 2.0 the game's Options allow), grass and foliage amount and distance, weather, screen glow, grey screen when dead, spell queue window, nameplate distance, always compare items, shorter loading screens and screenshot quality.

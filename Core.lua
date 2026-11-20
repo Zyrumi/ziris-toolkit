@@ -16,7 +16,7 @@
 --   Flight timer    (Flights.lua)
 --   Threat          (Threat.lua)
 --   Photo mode      (Photo.lua, more hidden with the game's Toggle UI key)
---   AFK screen      (AfkScreen.lua, part of photo mode)
+--   AFK screen      (AfkScreen.lua, uses photo mode's hiding)
 --   Minimap button  (MinimapButton.lua, opens these settings)
 --   Console settings page (Console.lua, the game's own settings, no switch)
 
@@ -41,6 +41,7 @@ local DEFAULTS = {
         disconnects = true,
         healerMana = true,
         photo = true,
+        afk = true,
     },
 }
 
@@ -675,12 +676,22 @@ local function BuildMainPage()
 
     -- Photo mode
     Check(page, "Photo mode",
-        "When you hide the interface with the game's Toggle UI key (Alt+Z), names over heads, nameplates, chat bubbles and damage numbers go too. Press it again and they are back. Also gives you an AFK screen: when you go AFK, the interface hides, the camera circles your character and a card shows who you are and how long you have been away.",
+        "When you hide the interface with the game's Toggle UI key (Alt+Z), names over heads, nameplates, chat bubbles and damage numbers go too. Press it again and they are back.",
         x, y,
         function() return root.ModuleOn("photo") end,
         function(v) root.SetModule("photo", v) end)
     y = y - 26
-    Note(page, "Pick what to hide and switch the AFK screen on the Photo mode page under Ziri's Toolkit. /zt photo shows what it changes.", x + 30, y)
+    Note(page, "Pick what to hide on the Photo mode page under Ziri's Toolkit. /zt photo shows what it changes.", x + 30, y)
+    y = y - 34
+
+    -- AFK screen
+    Check(page, "AFK screen",
+        "When you go AFK, the interface hides, the camera circles your character and bars show who you are and how long you have been away. Moving or a fight brings everything back.",
+        x, y,
+        function() return root.ModuleOn("afk") end,
+        function(v) root.SetModule("afk", v) end)
+    y = y - 26
+    Note(page, "Pick the layout, your character's pose and the picture on the AFK screen page under Ziri's Toolkit. Type /afk to try it.", x + 30, y)
     y = y - 34
 
     page:SetHeight(-y + 16)
