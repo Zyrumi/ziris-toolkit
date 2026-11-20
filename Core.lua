@@ -430,10 +430,56 @@ local function Heading(parent, text, x, y)
     return fs
 end
 
+-- A label with a row of buttons, one per option; the chosen one has a tick.
+-- options: { { value = ..., text = "...", tip = "..." (optional) }, ... }
+-- Rows wrap after maxWidth. Returns how far down it reaches (pixels).
+local function Choice(parent, label, tip, x, y, options, get, set, enabled, maxWidth)
+    local title = parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    title:SetPoint("TOPLEFT", x + 4, y)
+    title:SetText(label)
+    maxWidth = maxWidth or 540
+    local buttons = {}
+    local bx, by = 0, y - 18
+    for i, opt in ipairs(options) do
+        local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+        local w = opt.width or 128
+        if bx > 0 and bx + w > maxWidth then
+            bx, by = 0, by - 26
+        end
+        b:SetSize(w, 22)
+        b:SetPoint("TOPLEFT", x + 4 + bx, by)
+        bx = bx + w + 4
+        b:SetText(opt.text)
+        local mark = b:CreateTexture(nil, "OVERLAY")
+        mark:SetSize(16, 16)
+        mark:SetPoint("LEFT", 3, 0)
+        mark:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        b.mark = mark
+        b:SetScript("OnClick", function()
+            set(opt.value)
+            RefreshAll()
+        end)
+        AddTooltip(b, label .. ": " .. opt.text, opt.tip or tip)
+        buttons[i] = b
+    end
+    refreshers[#refreshers + 1] = function()
+        local v = get()
+        local on = (not enabled) or enabled()
+        for i, b in ipairs(buttons) do
+            local chosen = options[i].value == v
+            b.mark:SetShown(chosen)
+            if chosen then b:LockHighlight() else b:UnlockHighlight() end
+            b:SetEnabled(on)
+        end
+    end
+    return y - by + 24
+end
+
 -- For parts that build their own settings page.
 root.UI = {
     Check = Check, Note = Note, ScrollArea = ScrollArea, RefreshAll = RefreshAll,
     Slider = Slider, Button = Button, Heading = Heading, AddTooltip = AddTooltip,
+    Choice = Choice,
 }
 
 local function BuildMainPage()

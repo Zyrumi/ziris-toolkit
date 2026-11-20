@@ -59,7 +59,11 @@ local DEFAULTS = {
     names = true, nameplates = true, bubbles = true, numbers = true, spin = false,
     afk = true,   -- AFK screen when you go AFK (AfkScreen.lua)
     card = false, -- the same screen with the Toggle UI key
+    -- How the AFK screen looks (see AfkScreen.lua)
+    layout = "one", side = "right", size = 3, facing = "in", anim = "wave",
+    center = "logo", crest = true,
 }
+Photo.DEFAULTS = DEFAULTS
 
 local active = false
 local spinning = false
@@ -348,7 +352,53 @@ local function BuildPage()
         function(v) p.card = v end,
         function() return root.ModuleOn("photo") end)
     y = y - 30
-    UI.Note(page, "A fight ends the AFK screen at once. The things checked above are hidden on the AFK screen too.", x, y)
+    UI.Note(page, "A fight ends the AFK screen at once. The things checked above are hidden on the AFK screen too. Type /afk to try the look.", x, y)
+    y = y - 36
+
+    local A = root.AfkScreen
+    local on = function() return root.ModuleOn("photo") end
+    local function Pick(label, tip, key, options)
+        local h = UI.Choice(page, label, tip, x, y, options,
+            function() return p[key] end,
+            function(v) p[key] = v end, on)
+        y = y - h - 6
+    end
+    Pick("Layout", "How the bars on the AFK screen are laid out.", "layout", {
+        { value = "one", text = "Bottom bar", width = 150,
+          tip = "One bar along the bottom: your name on the left, away timer, date and time on the right." },
+        { value = "two", text = "Top and bottom bars", width = 170,
+          tip = "Date and time in a bar at the top, your name in the middle of a bar at the bottom." },
+    })
+    Pick("Character", "Where your character stands on the AFK screen.", "side", {
+        { value = "left", text = "Left" },
+        { value = "right", text = "Right" },
+        { value = "off", text = "None" },
+    })
+    UI.Slider(page, "Character size", "How big your character is on the AFK screen.", x, y, 1, 4, 1,
+        function() return p.size end,
+        function(v) p.size = math.floor(v + 0.5) end,
+        { format = function(v) return A and A.SIZE_NAMES[math.floor(v + 0.5)] or tostring(v) end })
+    y = y - 52
+    Pick("Facing", "Which way your character looks.", "facing", {
+        { value = "in", text = "To the middle", width = 140 },
+        { value = "front", text = "At you" },
+        { value = "out", text = "Away" },
+    })
+    local anims = {}
+    for _, key in ipairs(A and A.ANIM_ORDER or {}) do
+        anims[#anims + 1] = { value = key, text = A.ANIMS[key].text, width = 170 }
+    end
+    Pick("What the character does", "Your character on the AFK screen only; you don't do it in the game.", "anim", anims)
+    Pick("Picture in the middle", "The picture in the middle of the AFK screen.", "center", {
+        { value = "logo", text = "Game logo", tip = "The game's own World of Warcraft: Forever logo." },
+        { value = "class", text = "Class icon" },
+        { value = "faction", text = "Alliance or Horde", width = 150 },
+        { value = "none", text = "Nothing" },
+    })
+    UI.Check(page, "Alliance or Horde crest by your name", "Your faction's crest next to your name on the AFK screen.",
+        x, y,
+        function() return p.crest end,
+        function(v) p.crest = v end, on)
     y = y - 36
 
     page:SetHeight(-y + 16)
