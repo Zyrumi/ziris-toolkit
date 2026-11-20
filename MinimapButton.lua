@@ -1,7 +1,7 @@
 -- Ziri's Toolkit: minimap button
 -- A round button on the edge of the minimap with Ziri's face.
---   Click: open the toolkit's settings.
---   Drag:  move it around the minimap's edge (remembered).
+--   Left-click: open the toolkit's settings.
+--   Drag:       move it around the minimap's edge (remembered).
 -- It can be hidden on the settings page.
 
 local ADDON_NAME, root = ...
@@ -99,9 +99,10 @@ local function Create()
     end)
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText(root.TITLE, 1, 1, 1)
-        GameTooltip:AddLine("Click: settings", nil, nil, nil, true)
-        GameTooltip:AddLine("Drag: move this button", nil, nil, nil, true)
+        -- Same style as our other addons: gold title, white actions, grey extras.
+        GameTooltip:SetText(root.TITLE, 1, 0.82, 0)
+        GameTooltip:AddLine("Left-click: Settings", 1, 1, 1, true)
+        GameTooltip:AddLine("Drag: Move", 0.6, 0.6, 0.6, true)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function()
