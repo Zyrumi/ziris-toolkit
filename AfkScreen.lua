@@ -80,7 +80,7 @@ AfkScreen.ANIMS = {
 }
 
 -- How far the character's feet reach down into the bottom bar (pixels).
-AfkScreen.FEET_INTO_BAR = 26
+AfkScreen.FEET_INTO_BAR = 70
 
 -- Model facing in radians; positive turns it toward the right of the screen.
 AfkScreen.FACE_ANGLE = 0.6
@@ -215,6 +215,49 @@ local function Faction()
     return nil
 end
 
+-- The game's class crest pictures, biggest first: the crest behind the
+-- Legion order hall report, the round crest from the order hall missions
+-- and the order hall minimap button.
+AfkScreen.CREST_SIZE = 150
+function AfkScreen.CrestAtlases(token)
+    return {
+        "legionmission-landingpage-background-" .. token,
+        "classhall-circle-" .. token,
+        "legionmission-landingbutton-" .. token .. "-up",
+    }
+end
+
+-- "Interface\ICONS\crest_paladin": the class crest icon the game has.
+function AfkScreen.CrestFile(token)
+    return "Interface\\ICONS\\crest_" .. token:lower()
+end
+
+-- Round cut for a texture (the crest), or none.
+local rounded = setmetatable({}, { __mode = "k" })
+local roundMask
+function AfkScreen.IsRound(tex)
+    return rounded[tex] == true
+end
+function AfkScreen.SetRound(tex, on)
+    if not (tex.AddMaskTexture and card and card.text and card.text.CreateMaskTexture) then
+        return
+    end
+    if not roundMask then
+        roundMask = card.text:CreateMaskTexture()
+        roundMask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    end
+    local mask = roundMask
+    if on and not rounded[tex] then
+        mask:ClearAllPoints()
+        mask:SetAllPoints(tex)
+        pcall(tex.AddMaskTexture, tex, mask)
+        rounded[tex] = true
+    elseif not on and rounded[tex] then
+        pcall(tex.RemoveMaskTexture, tex, mask)
+        rounded[tex] = nil
+    end
+end
+
 -- Where the game's logo can come from, best first: { name, file }.
 function AfkScreen.LogoSources()
     local list = {}
@@ -248,6 +291,17 @@ function AfkScreen.Report()
         root.Print("logo: the game offers none")
     end
     local token = ClassToken()
+    if token then
+        for _, name in ipairs(AfkScreen.CrestAtlases(token)) do
+            local info = C_Texture and Call(C_Texture.GetAtlasInfo, name)
+            root.Print("class crest: " .. name .. ": " .. (type(info) == "table"
+                and ("in the game, " .. tostring(info.width) .. " x " .. tostring(info.height))
+                or "not in the game"))
+        end
+        local ok, loaded = pcall(test.SetTexture, test, AfkScreen.CrestFile(token))
+        root.Print("class crest: " .. AfkScreen.CrestFile(token) .. ": "
+            .. ((ok and loaded ~= false) and "loads" or "does not load"))
+    end
     root.Print("class icon: " .. tostring(token and GetClassAtlas and Call(GetClassAtlas, token) or "none"))
     root.Print("faction: " .. tostring(Faction() or "none"))
     if card and card:IsShown() then
@@ -273,6 +327,24 @@ function AfkScreen.SetPicture(tex, kind, big)
         local token = ClassToken()
         if not token then
             return nil
+        end
+        -- The class crest: the biggest crest picture the game has, else the
+        -- crest_<class> icon cut round so its dark square corners go.
+        for _, name in ipairs(AfkScreen.CrestAtlases(token)) do
+            local info = C_Texture and Call(C_Texture.GetAtlasInfo, name)
+            if type(info) == "table" and tex.SetAtlas and pcall(tex.SetAtlas, tex, name) then
+                local w, h = tonumber(info.width) or 1, tonumber(info.height) or 1
+                local s = AfkScreen.CREST_SIZE / math.max(w, h, 1)
+                AfkScreen.crestUsed = name
+                return math.floor(w * s + 0.5), math.floor(h * s + 0.5)
+            end
+        end
+        AfkScreen.crestUsed = AfkScreen.CrestFile(token)
+        local ok, loaded = pcall(tex.SetTexture, tex, AfkScreen.CrestFile(token))
+        if ok and loaded ~= false then
+            tex:SetTexCoord(0.06, 0.94, 0.06, 0.94)
+            AfkScreen.SetRound(tex, true)
+            return big, big
         end
         local atlas = GetClassAtlas and Call(GetClassAtlas, token)
         if type(atlas) == "string" and tex.SetAtlas and pcall(tex.SetAtlas, tex, atlas) then
@@ -476,7 +548,8 @@ function AfkScreen.Layout()
     -- The picture in the middle.
     local tex = card.center
     tex:ClearAllPoints()
-    local w, h = AfkScreen.SetPicture(tex, Opt("center"), 96)
+    AfkScreen.SetRound(tex, false)
+    local w, h = AfkScreen.SetPicture(tex, Opt("center"), 112)
     if w then
         tex:SetSize(w, h)
         if two then
@@ -681,7 +754,7 @@ local function BuildPage()
     Pick("What the character does", "Your character on the AFK screen only; you don't do it in the game.", "anim", anims)
     Pick("Picture in the middle", "The picture in the middle of the AFK screen.", "center", {
         { value = "logo", text = "Game logo", tip = "The game's own World of Warcraft: Forever logo." },
-        { value = "class", text = "Class icon" },
+        { value = "class", text = "Class crest", tip = "Your class's crest, the same art as on the game's class crest icons." },
         { value = "faction", text = "Alliance or Horde", width = 150 },
         { value = "none", text = "Nothing" },
     })

@@ -112,7 +112,7 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 
 - Moving, casting or chatting ends AFK and brings everything back, and so does the Toggle UI key. A fight ends it at once.
 - It has its own switch on the main page and works whether photo mode is on or not. Photo mode's page has a switch to show the same bars when you press the Toggle UI key yourself; then they show where you are instead of the away timer.
-- Its look is set on the AFK screen page under Ziri's Toolkit: one bar along the bottom or a bar at the top and the bottom; your character on the left, the right or not at all, how big, which way it faces and what it does (waves, stands, turns, dances, sits, sleeps or cheers); the game's logo, your class icon or your Alliance or Horde crest in the middle; and a crest by your name. Type `/afk` to see it.
+- Its look is set on the AFK screen page under Ziri's Toolkit: one bar along the bottom or a bar at the top and the bottom; your character on the left, the right or not at all, how big, which way it faces and what it does (waves, stands, turns, dances, sits, sleeps or cheers); the game's logo, your class crest or your Alliance or Horde crest in the middle; and a crest by your name. Type `/afk` to see it.
 - In dungeons and raids the game may not tell addons that you are AFK; then the AFK screen doesn't come up.
 - `/zt afk` shows which logo, class icon and faction picture the game gives the AFK screen.
 
