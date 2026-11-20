@@ -84,6 +84,9 @@ AfkScreen.ANIMS = {
 -- the feet stand on it (seen in game: 70 of 430 is right).
 AfkScreen.FEET_RATIO = 0.163
 
+-- The lowest line of text sits this far above the bottom edge (pixels).
+AfkScreen.TEXT_LOW = 16
+
 -- Model facing in radians; positive turns it toward the right of the screen.
 AfkScreen.FACE_ANGLE = 0.6
 
@@ -579,37 +582,58 @@ function AfkScreen.Layout()
     card.crest:SetShown(crestOn and true or false)
     card.crest:SetSize(crestSize, crestSize)
 
+    -- All text sits low, near the bottom edge, stacked upward from there.
+    local low = AfkScreen.TEXT_LOW
+    local hasGuild = (card.guild:GetText() or "") ~= ""
+    local hasTimer = card.reason == "afk"
     if not two then
-        -- Left: crest, name, level and class, guild.
+        -- Left: crest, name, level and class, guild (bottom line).
         local x = leftIn
         if crestOn then
-            card.crest:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, 34)
+            card.crest:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, low)
             x = x + crestSize + 10
         end
-        card.name:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, 70)
-        card.desc:SetPoint("TOPLEFT", card.name, "BOTTOMLEFT", 0, -6)
-        card.guild:SetPoint("TOPLEFT", card.desc, "BOTTOMLEFT", 0, -4)
-        -- Right: away timer (or where you are), date and time.
-        card.caption:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -rightIn, 84)
-        card.big:SetPoint("TOPRIGHT", card.caption, "BOTTOMRIGHT", 0, -2)
-        card.clock:SetPoint("TOPRIGHT", card.big, "BOTTOMRIGHT", 0, -4)
+        if hasGuild then
+            card.guild:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, low)
+            card.desc:SetPoint("BOTTOMLEFT", card.guild, "TOPLEFT", 0, 4)
+        else
+            card.desc:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, low)
+        end
+        card.name:SetPoint("BOTTOMLEFT", card.desc, "TOPLEFT", 0, 4)
+        -- Right: date and time (bottom line), away timer or where you are above.
+        card.clock:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -rightIn, low)
         card.dateText:SetPoint("RIGHT", card.clock, "LEFT", -8, 0)
+        if hasTimer then
+            card.big:SetPoint("BOTTOMRIGHT", card.clock, "TOPRIGHT", 0, 4)
+            card.caption:SetPoint("BOTTOMRIGHT", card.big, "TOPRIGHT", 0, 2)
+        else
+            card.big:SetPoint("BOTTOMRIGHT", card.clock, "TOPRIGHT", 0, 4)
+            card.caption:SetPoint("BOTTOMRIGHT", card.clock, "TOPRIGHT", 0, 4)
+        end
     else
         -- Top bar: date left, local time right.
         card.topDate:SetPoint("LEFT", card.top, "LEFT", 24, 0)
         card.clock:SetPoint("RIGHT", card.top, "RIGHT", -24, 0)
         card.topClockLabel:SetPoint("RIGHT", card.clock, "LEFT", -6, 0)
         -- Bottom bar: name in the middle, crest and away timer on the left.
-        card.name:SetPoint("BOTTOM", card, "BOTTOM", 0, 58)
-        card.desc:SetPoint("TOP", card.name, "BOTTOM", 0, -4)
-        card.guild:SetPoint("TOP", card.desc, "BOTTOM", 0, -4)
+        if hasGuild then
+            card.guild:SetPoint("BOTTOM", card, "BOTTOM", 0, low)
+            card.desc:SetPoint("BOTTOM", card.guild, "TOP", 0, 4)
+        else
+            card.desc:SetPoint("BOTTOM", card, "BOTTOM", 0, low)
+        end
+        card.name:SetPoint("BOTTOM", card.desc, "TOP", 0, 4)
         local x = leftIn
         if crestOn then
-            card.crest:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, 30)
+            card.crest:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, low)
             x = x + crestSize + 10
         end
-        card.caption:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, 62)
-        card.big:SetPoint("TOPLEFT", card.caption, "BOTTOMLEFT", 0, -2)
+        card.big:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, low)
+        if hasTimer then
+            card.caption:SetPoint("BOTTOMLEFT", card.big, "TOPLEFT", 0, 2)
+        else
+            card.caption:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, low)
+        end
     end
     local nameAlign = two and "CENTER" or "LEFT"
     card.name:SetJustifyH(nameAlign)
