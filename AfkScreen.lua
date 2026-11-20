@@ -79,8 +79,10 @@ AfkScreen.ANIMS = {
     cheer = { text = "Cheers now and then" },
 }
 
--- How far the character's feet reach down into the bottom bar (pixels).
-AfkScreen.FEET_INTO_BAR = 70
+-- The model frame leaves empty space under the feet that grows with the
+-- character's size; this much of the height is moved down into the bar so
+-- the feet stand on it (seen in game: 70 of 430 is right).
+AfkScreen.FEET_RATIO = 0.163
 
 -- Model facing in radians; positive turns it toward the right of the screen.
 AfkScreen.FACE_ANGLE = 0.6
@@ -215,16 +217,26 @@ local function Faction()
     return nil
 end
 
--- The game's class crest pictures, best first: the round crest from the
--- Legion order hall missions, the order hall minimap button, and last the
--- big crest behind the order hall report (seen in game: pale and faded).
+-- The game's class crest pictures. "class": the big crest from behind the
+-- Legion order hall report (see-through in the game, so it is drawn
+-- EMBLEM_LAYERS times on top of itself to look solid), then the round ones.
+-- "medallion": the round crest from the order hall missions, then the one
+-- on the order hall minimap button.
 AfkScreen.CREST_SIZE = 150
-function AfkScreen.CrestAtlases(token)
-    return {
+AfkScreen.EMBLEM_LAYERS = 3
+function AfkScreen.CrestAtlases(token, kind)
+    local round = {
         "classhall-circle-" .. token,
         "legionmission-landingbutton-" .. token .. "-up",
-        "legionmission-landingpage-background-" .. token,
     }
+    if kind == "medallion" then
+        return round
+    end
+    return { "legionmission-landingpage-background-" .. token, round[1], round[2] }
+end
+
+function AfkScreen.IsEmblem(name)
+    return type(name) == "string" and name:find("landingpage%-background") ~= nil
 end
 
 -- "Interface\ICONS\crest_paladin": the class crest icon the game has.
@@ -292,7 +304,7 @@ function AfkScreen.Report()
     end
     local token = ClassToken()
     if token then
-        for _, name in ipairs(AfkScreen.CrestAtlases(token)) do
+        for _, name in ipairs(AfkScreen.CrestAtlases(token, "class")) do
             local info = C_Texture and Call(C_Texture.GetAtlasInfo, name)
             root.Print("class crest: " .. name .. ": " .. (type(info) == "table"
                 and ("in the game, " .. tostring(info.width) .. " x " .. tostring(info.height))
@@ -323,14 +335,14 @@ function AfkScreen.SetPicture(tex, kind, big)
         end
         AfkScreen.logoUsed = nil
         return nil
-    elseif kind == "class" then
+    elseif kind == "class" or kind == "medallion" then
         local token = ClassToken()
         if not token then
             return nil
         end
-        -- The class crest: the biggest crest picture the game has, else the
+        -- The class crest: a crest picture the game has, else the
         -- crest_<class> icon cut round so its dark square corners go.
-        for _, name in ipairs(AfkScreen.CrestAtlases(token)) do
+        for _, name in ipairs(AfkScreen.CrestAtlases(token, kind)) do
             local info = C_Texture and Call(C_Texture.GetAtlasInfo, name)
             if type(info) == "table" and tex.SetAtlas and pcall(tex.SetAtlas, tex, name) then
                 local w, h = tonumber(info.width) or 1, tonumber(info.height) or 1
@@ -445,6 +457,10 @@ local function Build()
 
     card.crest = text:CreateTexture(nil, "OVERLAY")
     card.center = text:CreateTexture(nil, "OVERLAY")
+    card.centerLayers = {}
+    for i = 2, AfkScreen.EMBLEM_LAYERS do
+        card.centerLayers[i - 1] = text:CreateTexture(nil, "OVERLAY")
+    end
 
     -- Your character, in front of the bars.
     local okModel, model = pcall(CreateFrame, "PlayerModel", nil, card)
@@ -482,7 +498,7 @@ function AfkScreen.Layout()
     if m then
         m:ClearAllPoints()
         m:SetSize(modelW, modelH)
-        local feet = barH - AfkScreen.FEET_INTO_BAR
+        local feet = barH - math.floor(modelH * AfkScreen.FEET_RATIO + 0.5)
         if side == "left" then
             m:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 20, feet)
         elseif side == "right" then
@@ -549,7 +565,19 @@ function AfkScreen.Layout()
     local tex = card.center
     tex:ClearAllPoints()
     AfkScreen.SetRound(tex, false)
+    AfkScreen.crestUsed = nil
     local w, h = AfkScreen.SetPicture(tex, Opt("center"), 112)
+    -- The big emblem is see-through: more copies on top make it solid.
+    local emblem = w and AfkScreen.IsEmblem(AfkScreen.crestUsed)
+    for _, layer in ipairs(card.centerLayers) do
+        if emblem and pcall(layer.SetAtlas, layer, AfkScreen.crestUsed) then
+            layer:ClearAllPoints()
+            layer:SetAllPoints(tex)
+            layer:Show()
+        else
+            layer:Hide()
+        end
+    end
     if w then
         tex:SetSize(w, h)
         if two then
@@ -754,7 +782,8 @@ local function BuildPage()
     Pick("What the character does", "Your character on the AFK screen only; you don't do it in the game.", "anim", anims)
     Pick("Picture in the middle", "The picture in the middle of the AFK screen.", "center", {
         { value = "logo", text = "Game logo", tip = "The game's own World of Warcraft: Forever logo." },
-        { value = "class", text = "Class crest", tip = "Your class's crest, the same art as on the game's class crest icons." },
+        { value = "class", text = "Class crest", tip = "Your class's big crest, the one behind the order hall report from Legion." },
+        { value = "medallion", text = "Class medallion", width = 140, tip = "Your class's crest in a round medallion." },
         { value = "faction", text = "Alliance or Horde", width = 150 },
         { value = "none", text = "Nothing" },
     })
