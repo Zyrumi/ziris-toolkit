@@ -820,6 +820,10 @@ SlashCmdList.ZIRISTOOLKIT = function(input)
         root.HealerMana.Report()
         return
     end
+    if cmd == "afk" and root.AfkScreen then
+        root.AfkScreen.Report()
+        return
+    end
     if cmd == "photo" and root.Photo then
         root.Photo.Report()
         return

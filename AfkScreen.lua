@@ -212,17 +212,59 @@ local function Faction()
     return nil
 end
 
+-- Where the game's logo can come from, best first: { name, file }.
+function AfkScreen.LogoSources()
+    local list = {}
+    local function Add(name, file)
+        if file ~= nil and not IsSecret(file) and file ~= 0 and file ~= "" then
+            list[#list + 1] = { name, file }
+        end
+    end
+    local info = C_GameRules and Call(C_GameRules.GetCurrentGameModeDisplayInfo)
+    Add("game mode logo", type(info) == "table" and info.logo or nil)
+    local level = Call(GetClientDisplayExpansionLevel)
+    if type(level) == "number" and not IsSecret(level) then
+        local exp = Call(GetExpansionDisplayInfo, level)
+        Add("expansion " .. level .. " logo", type(exp) == "table" and exp.logo or nil)
+    end
+    Add("classic logo file", "Interface\\Glues\\Common\\Glues-WoW-ClassicLogo")
+    Add("original logo file", "Interface\\Glues\\Common\\Glues-WoW-Logo")
+    return list
+end
+
+-- /zt afk: what the AFK screen finds for its pictures.
+function AfkScreen.Report()
+    root.Print("AFK screen " .. (root.ModuleOn("afk") and "is on." or "is switched off."))
+    local test = (card and card.center) or CreateFrame("Frame"):CreateTexture()
+    for _, source in ipairs(AfkScreen.LogoSources()) do
+        local ok, loaded = pcall(test.SetTexture, test, source[2])
+        root.Print("logo: " .. source[1] .. " (" .. tostring(source[2]) .. "): "
+            .. ((ok and loaded ~= false) and "loads" or "does not load"))
+    end
+    if #AfkScreen.LogoSources() == 0 then
+        root.Print("logo: the game offers none")
+    end
+    local token = ClassToken()
+    root.Print("class icon: " .. tostring(token and GetClassAtlas and Call(GetClassAtlas, token) or "none"))
+    root.Print("faction: " .. tostring(Faction() or "none"))
+    if card and card:IsShown() then
+        AfkScreen.Layout()
+    end
+end
+
 -- Puts a picture on a texture. kind "logo", "class" or "faction".
 -- Returns width, height, or nil when there is nothing to show.
 function AfkScreen.SetPicture(tex, kind, big)
     if kind == "logo" then
-        local info = C_GameRules and Call(C_GameRules.GetCurrentGameModeDisplayInfo)
-        local logo = type(info) == "table" and info.logo
-        if logo and not IsSecret(logo) and logo ~= 0 then
-            tex:SetTexCoord(0, 1, 0, 1)
-            tex:SetTexture(logo)
-            return 256, 128
+        tex:SetTexCoord(0, 1, 0, 1)
+        for _, source in ipairs(AfkScreen.LogoSources()) do
+            local ok, loaded = pcall(tex.SetTexture, tex, source[2])
+            if ok and loaded ~= false then
+                AfkScreen.logoUsed = source[1]
+                return 256, 128
+            end
         end
+        AfkScreen.logoUsed = nil
         return nil
     elseif kind == "class" then
         local token = ClassToken()
