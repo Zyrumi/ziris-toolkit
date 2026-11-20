@@ -142,6 +142,12 @@ local function CharData()
     end
     c.on = type(c.on) == "table" and c.on or {}
     c.last = type(c.last) == "table" and c.last or {}
+    -- Up to 1.10.8 another paladin's blessing on you could become your
+    -- remembered one (say, Wisdom on a tank). Forget it once.
+    if not c.lastFromOthersFixed then
+        c.last.blessing = nil
+        c.lastFromOthersFixed = true
+    end
     return c
 end
 
@@ -207,16 +213,19 @@ local function PlayerBuffs()
             if a == nil then
                 return out
             end
-            local n, exp, dur = a.name, a.expirationTime, a.duration
+            local n, exp, dur, src = a.name, a.expirationTime, a.duration, a.sourceUnit
             if IsSecret(n) or IsSecret(exp) or IsSecret(dur) then
                 return nil
             end
             if type(n) == "string" then
                 exp, dur = tonumber(exp) or 0, tonumber(dur) or 0
+                local mine = not IsSecret(src) and src == "player"
                 local key, old = n:lower(), out[n:lower()]
                 -- Two of the same (say, from two people): keep the longer one.
                 if not old or old.expires ~= 0 and (exp == 0 or exp > old.expires) then
-                    out[key] = { expires = exp, duration = dur }
+                    out[key] = { expires = exp, duration = dur, mine = mine or (old and old.mine) or false }
+                elseif mine then
+                    old.mine = true
                 end
             end
         end
@@ -352,8 +361,19 @@ local function GroupState(g, book, buffs, track, c)
             end
         end
     end
-    if bestName and c and known[bestName:lower()] then
-        c.last[g.key] = known[bestName:lower()]
+    -- Remember only what you cast yourself: another paladin's blessing or
+    -- aura on you is their pick, not yours.
+    if c then
+        local mineName
+        for _, n in ipairs(names) do
+            local b = buffs[n:lower()]
+            if b and b.mine and known[n:lower()] and (not mineName or n == bestName) then
+                mineName = n
+            end
+        end
+        if mineName then
+            c.last[g.key] = known[mineName:lower()]
+        end
     end
 
     local cast = c and type(c.last[g.key]) == "string" and known[c.last[g.key]:lower()] or knownList[1]
