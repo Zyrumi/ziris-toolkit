@@ -235,6 +235,19 @@ function AfkScreen.CrestAtlases(token, kind)
     return { "legionmission-landingpage-background-" .. token, round[1], round[2] }
 end
 
+-- Class crests shipped with the toolkit (Media\Crests, 256 x 256, from
+-- github.com/orourkek/Wow-Icons). "Class crest" uses these first.
+AfkScreen.BUNDLED_CRESTS = {
+    DEATHKNIGHT = true, DRUID = true, HUNTER = true, MAGE = true, PALADIN = true,
+    PRIEST = true, ROGUE = true, SHAMAN = true, WARLOCK = true, WARRIOR = true,
+}
+function AfkScreen.BundledCrest(token)
+    if token and AfkScreen.BUNDLED_CRESTS[token] then
+        return "Interface\\AddOns\\ZirisToolkit\\Media\\Crests\\" .. token:lower()
+    end
+    return nil
+end
+
 function AfkScreen.IsEmblem(name)
     return type(name) == "string" and name:find("landingpage%-background") ~= nil
 end
@@ -340,8 +353,18 @@ function AfkScreen.SetPicture(tex, kind, big)
         if not token then
             return nil
         end
-        -- The class crest: a crest picture the game has, else the
-        -- crest_<class> icon cut round so its dark square corners go.
+        -- The class crest: the toolkit's own crest picture, else a crest
+        -- picture the game has, else the crest_<class> icon cut round so its
+        -- dark square corners go.
+        local bundled = kind == "class" and AfkScreen.BundledCrest(token)
+        if bundled then
+            local ok, loaded = pcall(tex.SetTexture, tex, bundled)
+            if ok and loaded ~= false then
+                tex:SetTexCoord(0, 1, 0, 1)
+                AfkScreen.crestUsed = bundled
+                return AfkScreen.CREST_SIZE, AfkScreen.CREST_SIZE
+            end
+        end
         for _, name in ipairs(AfkScreen.CrestAtlases(token, kind)) do
             local info = C_Texture and Call(C_Texture.GetAtlasInfo, name)
             if type(info) == "table" and tex.SetAtlas and pcall(tex.SetAtlas, tex, name) then
@@ -782,7 +805,7 @@ local function BuildPage()
     Pick("What the character does", "Your character on the AFK screen only; you don't do it in the game.", "anim", anims)
     Pick("Picture in the middle", "The picture in the middle of the AFK screen.", "center", {
         { value = "logo", text = "Game logo", tip = "The game's own World of Warcraft: Forever logo." },
-        { value = "class", text = "Class crest", tip = "Your class's big crest, the one behind the order hall report from Legion." },
+        { value = "class", text = "Class crest", tip = "Your class's crest in full colour." },
         { value = "medallion", text = "Class medallion", width = 140, tip = "Your class's crest in a round medallion." },
         { value = "faction", text = "Alliance or Horde", width = 150 },
         { value = "none", text = "Nothing" },
