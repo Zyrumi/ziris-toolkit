@@ -38,6 +38,8 @@ Photo.GROUPS = {
         cvars = {
             "nameplateShowEnemies", "nameplateShowFriendlyPlayers", "nameplateShowFriendlyNpcs",
             "nameplateShowFriends", "nameplateShowSelf",
+            -- the plate the game shows over what you would interact with
+            "SoftTargetNameplateInteract", "SoftTargetNameplateFriend", "SoftTargetNameplateEnemy",
         },
     },
     {

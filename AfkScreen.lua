@@ -222,7 +222,7 @@ end
 -- EMBLEM_LAYERS times on top of itself to look solid), then the round ones.
 -- "medallion": the round crest from the order hall missions, then the one
 -- on the order hall minimap button.
-AfkScreen.CREST_SIZE = 150
+AfkScreen.CREST_SIZE = 260
 AfkScreen.EMBLEM_LAYERS = 3
 function AfkScreen.CrestAtlases(token, kind)
     local round = {
@@ -235,8 +235,9 @@ function AfkScreen.CrestAtlases(token, kind)
     return { "legionmission-landingpage-background-" .. token, round[1], round[2] }
 end
 
--- Class crests shipped with the toolkit (Media\Crests, 256 x 256, from
--- github.com/orourkek/Wow-Icons). "Class crest" uses these first.
+-- Class crests shipped with the toolkit (Media\Crests, 256 x 256, Blizzard's
+-- class crest art from the WoW blog via warcraft.wiki.gg, no ring).
+-- "Class crest" uses these first.
 AfkScreen.BUNDLED_CRESTS = {
     DEATHKNIGHT = true, DRUID = true, HUNTER = true, MAGE = true, PALADIN = true,
     PRIEST = true, ROGUE = true, SHAMAN = true, WARLOCK = true, WARRIOR = true,

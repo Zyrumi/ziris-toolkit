@@ -130,7 +130,7 @@ This addon replaces the separate Loot Highlight and Fresh Ranks addons. While an
 
 Flight times for routes you haven't flown come from [InFlight](https://github.com/LudiusMaximus/InFlight) (TotalPackage, Deranjata, LudiusMaximus) and [FlightCountdown](https://github.com/burk3/FlightCountdown) (burk3), both under the MIT License; see FlightData.lua.
 
-The class crests on the AFK screen (Media/Crests) come from [orourkek/Wow-Icons](https://github.com/orourkek/Wow-Icons). The art itself belongs to Blizzard Entertainment.
+The class crests on the AFK screen (Media/Crests) are Blizzard's class crest art from the WoW blog, as kept on the [Warcraft Wiki](https://warcraft.wiki.gg/wiki/Class). The art belongs to Blizzard Entertainment.
 
 ## Install
 
