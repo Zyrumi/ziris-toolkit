@@ -44,16 +44,16 @@ end
 -- that count too (group versions, greater blessings). off: starts switched
 -- off. Spell IDs are the classic rank 1 IDs; the English name is a fallback.
 local GROUPS = {
+    -- Paladin spells as they are on Forever (Wowhead Forever, 2026-11-20): no
+    -- Sanctity or Crusader Aura, and no Blessing of Light, Sanctuary or
+    -- Salvation. Blessings, greater ones too, last an hour.
     { key = "paladinAura", label = "Paladin aura", class = "PALADIN", spells = {
         { 465, "Devotion Aura" }, { 7294, "Retribution Aura" }, { 19746, "Concentration Aura" },
-        { 20218, "Sanctity Aura" }, { 19876, "Shadow Resistance Aura" }, { 19888, "Frost Resistance Aura" },
-        { 19891, "Fire Resistance Aura" }, { 32223, "Crusader Aura" } } },
+        { 19876, "Shadow Resistance Aura" }, { 19888, "Frost Resistance Aura" }, { 19891, "Fire Resistance Aura" } } },
     { key = "blessing", label = "Blessing on yourself", class = "PALADIN", spells = {
-        { 19740, "Blessing of Might" }, { 19742, "Blessing of Wisdom" }, { 20217, "Blessing of Kings" },
-        { 1038, "Blessing of Salvation" }, { 19977, "Blessing of Light" }, { 20911, "Blessing of Sanctuary" } },
+        { 19740, "Blessing of Might" }, { 19742, "Blessing of Wisdom" }, { 20217, "Blessing of Kings" } },
         also = { { 25782, "Greater Blessing of Might" }, { 25894, "Greater Blessing of Wisdom" },
-            { 25898, "Greater Blessing of Kings" }, { 25895, "Greater Blessing of Salvation" },
-            { 25890, "Greater Blessing of Light" }, { 25899, "Greater Blessing of Sanctuary" } } },
+            { 25898, "Greater Blessing of Kings" } } },
     -- Everyone else in your group (your target when solo), each with the
     -- blessing that suits their class and role. See PartyBlessingState.
     { key = "groupBlessings", label = "Blessings on your group", class = "PALADIN", party = true, spells = {
