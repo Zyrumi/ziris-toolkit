@@ -15,6 +15,8 @@
 --   Buff reminders  (Buffs.lua)
 --   Flight timer    (Flights.lua)
 --   Threat          (Threat.lua)
+--   Photo mode      (Photo.lua, more hidden with the game's Toggle UI key)
+--   AFK screen      (AfkScreen.lua, part of photo mode)
 --   Minimap button  (MinimapButton.lua, opens these settings)
 --   Console settings page (Console.lua, the game's own settings, no switch)
 
@@ -38,6 +40,7 @@ local DEFAULTS = {
         threat = true,
         disconnects = true,
         healerMana = true,
+        photo = true,
     },
 }
 
@@ -624,6 +627,16 @@ local function BuildMainPage()
     Note(page, "Someone already offline when you join or reload shows as \"offline\" without a time: the game doesn't say since when.", x + 30, y)
     y = y - 44
 
+    -- Photo mode
+    Check(page, "Photo mode",
+        "When you hide the interface with the game's Toggle UI key (Alt+Z), names over heads, nameplates, chat bubbles and damage numbers go too. Press it again and they are back. Also gives you an AFK screen: when you go AFK, the interface hides, the camera circles your character and a card shows who you are and how long you have been away.",
+        x, y,
+        function() return root.ModuleOn("photo") end,
+        function(v) root.SetModule("photo", v) end)
+    y = y - 26
+    Note(page, "Pick what to hide and switch the AFK screen on the Photo mode page under Ziri's Toolkit. /zt photo shows what it changes.", x + 30, y)
+    y = y - 34
+
     page:SetHeight(-y + 16)
 
     panel:SetScript("OnShow", RefreshAll)
@@ -748,6 +761,10 @@ SlashCmdList.ZIRISTOOLKIT = function(input)
     end
     if cmd == "healers" and root.HealerMana then
         root.HealerMana.Report()
+        return
+    end
+    if cmd == "photo" and root.Photo then
+        root.Photo.Report()
         return
     end
     if cmd == "rested" and root.Rested then

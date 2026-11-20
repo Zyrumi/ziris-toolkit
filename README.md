@@ -101,6 +101,19 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - Someone who was already offline when you joined the group or reloaded shows as "offline" without a time: the game doesn't say since when.
 - People who leave the group are dropped from the list.
 
+**Photo mode.** The game's Toggle UI key (Alt+Z unless you changed it) hides the interface but leaves names floating over everyone's heads. With photo mode on, the same key also hides names over players, NPCs and pets (your own too), nameplates, chat bubbles and the damage and healing numbers over targets. Press it again and everything is back exactly as you had it.
+
+- Pick what goes on the Photo mode page under Ziri's Toolkit. There is also a camera option, off at first, that slowly circles your character while the interface is hidden.
+- Nameplates can't be changed during a fight, so in combat they go (or come back) as soon as the fight ends.
+- If the game closes while the interface is hidden, your settings go back at the next login.
+- `/zt photo` lists the settings it changes and their values right now.
+
+**AFK screen.** Part of photo mode. When you go AFK (`/afk`, or after a few minutes without doing anything), the interface hides the same way, the camera slowly circles your character, and a card along the bottom of the screen shows your character in 3D, your name, level, race and class, your guild, how long you have been away and the time.
+
+- Moving, casting or chatting ends AFK and brings everything back, and so does the Toggle UI key. A fight ends it at once.
+- It can be switched off on the Photo mode page. There you can also have the same card show when you press the Toggle UI key yourself; then it shows where you are instead of the away timer.
+- In dungeons and raids the game may not tell addons that you are AFK; then the AFK screen doesn't come up.
+
 **Console settings.** A page under Ziri's Toolkit with sliders and switches for game settings you would otherwise type with `/console`: max camera distance (past the 2.0 the game's Options allow), grass and foliage amount and distance, weather, screen glow, grey screen when dead, spell queue window, nameplate distance, always compare items, shorter loading screens and screenshot quality.
 
 - These are the game's own settings. The page changes them directly and keeps no copy, so they stay as you set them even without the toolkit. "Reset to game defaults" puts them all back.
