@@ -215,15 +215,15 @@ local function Faction()
     return nil
 end
 
--- The game's class crest pictures, biggest first: the crest behind the
--- Legion order hall report, the round crest from the order hall missions
--- and the order hall minimap button.
+-- The game's class crest pictures, best first: the round crest from the
+-- Legion order hall missions, the order hall minimap button, and last the
+-- big crest behind the order hall report (seen in game: pale and faded).
 AfkScreen.CREST_SIZE = 150
 function AfkScreen.CrestAtlases(token)
     return {
-        "legionmission-landingpage-background-" .. token,
         "classhall-circle-" .. token,
         "legionmission-landingbutton-" .. token .. "-up",
+        "legionmission-landingpage-background-" .. token,
     }
 end
 

@@ -148,6 +148,43 @@ local function Sync()
     end
 end
 
+-- The game's own switch for what it draws in the world (names, nameplates
+-- and the like). Used on top of the settings above: in game some NPC names
+-- stayed with the settings alone. Not saved by the game, nothing to restore
+-- after a crash.
+local inWorldHidden = false
+local function HideInWorld(hide)
+    hide = hide and true or false
+    if hide == inWorldHidden or type(SetInWorldUIVisibility) ~= "function" then
+        return
+    end
+    if pcall(SetInWorldUIVisibility, not hide) then
+        inWorldHidden = hide
+    end
+end
+
+-- What the last hide did, for /zt photo.
+local function NoteLastRun(p)
+    local still = {}
+    for cvar in pairs(p.saved) do
+        local now = Read(cvar)
+        if now ~= nil and not Same(now, "0") then
+            still[#still + 1] = cvar .. "=" .. now
+        end
+    end
+    table.sort(still)
+    local count = 0
+    for _ in pairs(p.saved) do
+        count = count + 1
+    end
+    p.lastRun = {
+        count = count,
+        still = still,
+        inWorld = inWorldHidden,
+        combat = InCombatLockdown() and true or false,
+    }
+end
+
 -------------------------------------------------------------------------------
 -- Camera
 -------------------------------------------------------------------------------
@@ -201,6 +238,10 @@ function Photo.Enter(reason)
         end
     end
     Sync()
+    if afk or p.names then
+        HideInWorld(true)
+    end
+    NoteLastRun(p)
     if p.spin or afk then
         StartSpin()
     end
@@ -211,6 +252,7 @@ end
 
 function Photo.Leave()
     StopSpin()
+    HideInWorld(false)
     if root.AfkScreen then
         root.AfkScreen.HideCard()
     end
@@ -266,6 +308,15 @@ end)
 
 function Photo.Report()
     local p = DB()
+    local last = p.lastRun
+    if type(last) == "table" then
+        root.Print(("last time the interface was hidden: %d settings hidden%s; the game's in-world switch %s.")
+            :format(last.count or 0, last.combat and " (during a fight)" or "",
+                last.inWorld and "was used" or "was not available"))
+        if type(last.still) == "table" and #last.still > 0 then
+            root.Print("these stayed on: " .. table.concat(last.still, ", "))
+        end
+    end
     root.Print("photo mode " .. (root.ModuleOn("photo") and "is on" or "is switched off")
         .. (Photo.hookedToggle and ", listening to the Toggle UI key (Alt+Z)." or ", but the Toggle UI key could not be found."))
     for _, group in ipairs(Photo.GROUPS) do
@@ -375,6 +426,7 @@ events:SetScript("OnEvent", function(_, event)
     elseif event == "PLAYER_LOGOUT" then
         -- The game saves its settings as you log out: put yours back first.
         StopSpin()
+        HideInWorld(false)
         active = false
         Safely(Sync)
     end
