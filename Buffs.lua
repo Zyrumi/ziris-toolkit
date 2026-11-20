@@ -350,10 +350,46 @@ local function GroupState(g, book, buffs, track, c)
         return { state = "unknown" }
     end
     local now = GetTime()
+    -- Remember only what you cast yourself: another paladin's blessing or
+    -- aura on you is their pick, not yours.
+    if c then
+        local mineName, mineExp
+        for _, n in ipairs(names) do
+            local b = buffs[n:lower()]
+            if b and b.mine and known[n:lower()] then
+                local exp = b.expires == 0 and math.huge or b.expires
+                if not mineExp or exp > mineExp then
+                    mineName, mineExp = n, exp
+                end
+            end
+        end
+        if mineName then
+            c.last[g.key] = known[mineName:lower()]
+        end
+    end
+    local cast = c and type(c.last[g.key]) == "string" and known[c.last[g.key]:lower()] or knownList[1]
+
+    -- Your own blessing: a different blessing from another paladin doesn't
+    -- count (yours goes on top of it); theirs of the one you want does
+    -- (yours would only replace it).
+    local counts
+    if g.key == "blessing" and cast then
+        counts = {}
+        for i, s in ipairs(g.spells) do
+            local n = root.SpellName(s[1]) or s[2]
+            if n:lower() == cast:lower() then
+                counts[n:lower()] = true
+                local gr = g.also and g.also[i]
+                if gr then
+                    counts[(root.SpellName(gr[1]) or gr[2]):lower()] = true
+                end
+            end
+        end
+    end
     local best, bestName, forever
     for _, n in ipairs(names) do
         local b = buffs[n:lower()]
-        if b then
+        if b and (not counts or b.mine or counts[n:lower()]) then
             if b.expires == 0 or b.duration == 0 then
                 forever, bestName = true, n
             elseif not forever and (not best or b.expires - now > best.left) then
@@ -361,22 +397,6 @@ local function GroupState(g, book, buffs, track, c)
             end
         end
     end
-    -- Remember only what you cast yourself: another paladin's blessing or
-    -- aura on you is their pick, not yours.
-    if c then
-        local mineName
-        for _, n in ipairs(names) do
-            local b = buffs[n:lower()]
-            if b and b.mine and known[n:lower()] and (not mineName or n == bestName) then
-                mineName = n
-            end
-        end
-        if mineName then
-            c.last[g.key] = known[mineName:lower()]
-        end
-    end
-
-    local cast = c and type(c.last[g.key]) == "string" and known[c.last[g.key]:lower()] or knownList[1]
     if forever then
         return { state = "ok", name = bestName, cast = cast }
     end
@@ -547,6 +567,25 @@ local function UnitBlessing(unit, known)
     local power = Safe(UnitPowerType, unit)
     local melee = class == "DRUID" and (power == 1 or power == 3) -- rage or energy: bear or cat
     local pick = PickFor(unit)
+    -- A paladin keeps one blessing on each person: if yours is on them they
+    -- are done (until it fades), unless you picked another one for them.
+    -- Casting a different one would only replace yours.
+    local mineKey, mineLeft
+    for key in pairs(BLESSINGS) do
+        local on = BlessingOn(unit, key)
+        if on == nil then
+            return nil
+        end
+        if on and on.mine then
+            mineKey, mineLeft = key, on.left
+        end
+    end
+    if mineKey and known[mineKey] and (not pick or pick == mineKey) then
+        if mineLeft <= BLESSING_REFRESH then
+            return known[mineKey], "soon", mineLeft
+        end
+        return known[mineKey], "ok"
+    end
     local list = pick and known[pick] and { pick } or Buffs.BlessingsFor(class, role, melee)
     for _, key in ipairs(list) do
         local cast = known[key]
