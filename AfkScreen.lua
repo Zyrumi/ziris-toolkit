@@ -85,7 +85,7 @@ AfkScreen.ANIMS = {
 AfkScreen.FEET_RATIO = 0.163
 
 -- The lowest line of text sits this far above the bottom edge (pixels).
-AfkScreen.TEXT_LOW = 16
+AfkScreen.TEXT_LOW = 30
 
 -- Model facing in radians; positive turns it toward the right of the screen.
 AfkScreen.FACE_ANGLE = 0.6
@@ -428,11 +428,14 @@ end
 -- Bar shading: darkest at the screen edge, lighter toward the middle of the
 -- screen, then a soft fade above (below, for the top bar) so there is no hard
 -- edge. Alphas: at the edge, at the bar's inner edge; FADE pixels of fade.
-AfkScreen.SHADE = { edge = 0.95, inner = 0.6, fade = 90 }
+AfkScreen.SHADE = { edge = 0.95, inner = 0.5, fade = 120 }
 
 local function Shade(tex, fromAlpha, toAlpha)
-    -- fromAlpha at the bottom of the texture, toAlpha at its top
-    tex:SetColorTexture(1, 1, 1, 1)
+    -- fromAlpha at the bottom of the texture, toAlpha at its top. A gradient
+    -- needs a real (white) texture under it; on a plain colour fill it does
+    -- nothing (seen in game: the bar stayed solid).
+    tex:SetTexture("Interface\\Buttons\\WHITE8X8")
+    tex:SetVertexColor(1, 1, 1, 1)
     if tex.SetGradient and CreateColor then
         local ok = pcall(tex.SetGradient, tex, "VERTICAL",
             CreateColor(0.04, 0.035, 0.03, fromAlpha), CreateColor(0.04, 0.035, 0.03, toAlpha))
