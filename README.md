@@ -67,14 +67,10 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 
 **Buff reminders.** Out of combat, an icon for each of your own buffs, auras and tracking that is missing (after dying, or when it ran out) or about to run out. Click the icon to cast it on yourself. Nothing shows when all is well.
 
-- Covers what your class can cast on itself: paladin auras, blessings and Righteous Fury, priest Fortitude, Inner Fire, Divine Spirit and Shadow Protection, mage Arcane Intellect and armors, druid Mark of the Wild, Omen of Clarity and Thorns, shaman shields, warlock armors, hunter aspects and Trueshot Aura, and tracking (Find Minerals, Find Herbs and the rest).
-- Paladins also get **Blessings on your group**: one icon for the next person in your party or raid who is missing your blessing or has under a minute of it left, with their name under it. Click to bless them; the icon then moves on to the next person. Solo, it blesses a friendly player you have targeted. Your own blessing stays with "Blessing on yourself".
-  - Who gets what: warriors and rogues Might; hunters Kings, else Wisdom (Might is melee only, so it does nothing for them); mages, warlocks and priests Wisdom; druids, shamans and paladins by group role (healer Wisdom, damage Might); anyone in the tank role Kings. With no role set, Kings; without Kings, Might for a druid in cat or bear form and Wisdom for the rest. A blessing you haven't learned is skipped for the next one.
-  - Right-click the icon to pick another blessing for the person it shows: Might, Wisdom, Kings, then back to automatic. Your pick is remembered by name, per character.
-  - If another paladin already gave someone their first choice, you give the next one. People out of range or offline are skipped until they are back.
-  - In a raid with the PallyPower addon installed, this icon steps aside and leaves blessings to PallyPower, which shares them out between all the paladins.
-- Pick which ones per character on the Buff reminders page under Ziri's Toolkit. Righteous Fury, Thorns and Shadow Protection start switched off.
-- Groups like paladin auras or hunter aspects are fine with any one of them; a click casts the one you had last. Tracking is switched back on through the minimap.
+- Covers what your class can cast on itself: priest Fortitude, Inner Fire, Divine Spirit and Shadow Protection, mage Arcane Intellect and armors, druid Mark of the Wild, Omen of Clarity and Thorns, shaman shields, warlock armors, hunter aspects and Trueshot Aura, and tracking (Find Minerals, Find Herbs and the rest).
+- Paladin blessings, auras and Righteous Fury are no longer here: they live in the separate addon Zyrumi's Libram, which also blesses your whole group with one key.
+- Pick which ones per character on the Buff reminders page under Ziri's Toolkit. Thorns and Shadow Protection start switched off.
+- Groups like hunter aspects or mage armors are fine with any one of them; a click casts the one you had last. Tracking is switched back on through the minimap.
 - "About to run out" means the last tenth of the buff: at least 30 seconds and at most 5 minutes before it ends.
 - Hidden in combat, while dead, on a flight path and (druids, shamans) while shapeshifted. Shift-drag an icon to move the row. `/zt buffs` lists what is watched and how each stands.
 

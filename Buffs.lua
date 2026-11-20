@@ -5,15 +5,15 @@
 --
 -- Which ones are watched is set per character on the "Buff reminders"
 -- settings page; everything your class can cast starts switched on except a
--- few that only some players want (Righteous Fury, Thorns, Shadow
--- Protection).
+-- few that only some players want (Thorns, Shadow Protection).
+-- Paladin blessings, auras and Righteous Fury are in Zyrumi's Libram.
 --
 -- Rules:
 --   - Hidden in combat (the game hides aura details then anyway), while dead,
 --     on a flight path, in a vehicle, and for druids/shamans while shifted.
 --   - "Runs out soon" = the last tenth of the buff, at least 30 seconds and
 --     at most 5 minutes before it ends.
---   - Groups like paladin auras or mage armors are happy with any one of
+--   - Groups like hunter aspects or mage armors are happy with any one of
 --     them; a click casts the one you had last.
 --   - Tracking (Find Minerals, Find Herbs, ...) is a minimap switch on this
 --     client: a click switches back on what you had, through the minimap.
@@ -27,39 +27,12 @@ root.Buffs = Buffs
 
 local IsSecret = root.IsSecret
 
--- With the Tank Swap addon: Righteous Fury only matters in tank mode, and
--- Tank Swap takes it off in DPS mode on purpose. Without it: always.
-local function TankModeOrNoTankSwap()
-    local ts = _G.TankSwap
-    if type(ts) == "table" and type(ts.IsTank) == "function" then
-        local ok, v = pcall(ts.IsTank)
-        if ok and v ~= nil then
-            return v == true
-        end
-    end
-    return true
-end
-
 -- spells: what to cast, first one is the default. also: buffs from others
 -- that count too (group versions, greater blessings). off: starts switched
 -- off. Spell IDs are the classic rank 1 IDs; the English name is a fallback.
 local GROUPS = {
-    -- Paladin spells as they are on Forever (Wowhead Forever, 2026-11-20): no
-    -- Sanctity or Crusader Aura, and no Blessing of Light, Sanctuary or
-    -- Salvation. Blessings, greater ones too, last an hour.
-    { key = "paladinAura", label = "Paladin aura", class = "PALADIN", spells = {
-        { 465, "Devotion Aura" }, { 7294, "Retribution Aura" }, { 19746, "Concentration Aura" },
-        { 19876, "Shadow Resistance Aura" }, { 19888, "Frost Resistance Aura" }, { 19891, "Fire Resistance Aura" } } },
-    { key = "blessing", label = "Blessing on yourself", class = "PALADIN", spells = {
-        { 19740, "Blessing of Might" }, { 19742, "Blessing of Wisdom" }, { 20217, "Blessing of Kings" } },
-        also = { { 25782, "Greater Blessing of Might" }, { 25894, "Greater Blessing of Wisdom" },
-            { 25898, "Greater Blessing of Kings" } } },
-    -- Everyone else in your group (your target when solo), each with the
-    -- blessing that suits their class and role. See PartyBlessingState.
-    { key = "groupBlessings", label = "Blessings on your group", class = "PALADIN", party = true, spells = {
-        { 19740, "Blessing of Might" }, { 19742, "Blessing of Wisdom" }, { 20217, "Blessing of Kings" } } },
-    { key = "righteousFury", label = "Righteous Fury", class = "PALADIN", off = true, onlyWhen = TankModeOrNoTankSwap, spells = {
-        { 25780, "Righteous Fury" } } },
+    -- Paladin blessings, auras and Righteous Fury live in the separate
+    -- Zyrumi's Libram addon (one place for paladin blessing logic).
 
     { key = "fortitude", label = "Power Word: Fortitude", class = "PRIEST", spells = {
         { 1243, "Power Word: Fortitude" } }, also = { { 21562, "Prayer of Fortitude" } } },
@@ -142,12 +115,6 @@ local function CharData()
     end
     c.on = type(c.on) == "table" and c.on or {}
     c.last = type(c.last) == "table" and c.last or {}
-    -- Up to 1.10.8 another paladin's blessing on you could become your
-    -- remembered one (say, Wisdom on a tank). Forget it once.
-    if not c.lastFromOthersFixed then
-        c.last.blessing = nil
-        c.lastFromOthersFixed = true
-    end
     return c
 end
 
@@ -281,9 +248,6 @@ Buffs.WarnAt = WarnAt
 --   cast: spell name to cast; track: minimap indexes to switch on
 --   name: what is (or was) on you, for the tooltip
 local function GroupState(g, book, buffs, track, c)
-    if g.party then
-        return Buffs.PartyBlessingState(g, book)
-    end
     local known, knownList = {}, {}
     for _, s in ipairs(g.spells) do
         local n = root.KnownSpell(s[1], s[2], book)
@@ -350,7 +314,7 @@ local function GroupState(g, book, buffs, track, c)
         return { state = "unknown" }
     end
     local now = GetTime()
-    -- Remember only what you cast yourself: another paladin's blessing or
+    -- Remember only what you cast yourself: someone else's buff or
     -- aura on you is their pick, not yours.
     if c then
         local mineName, mineExp
@@ -369,27 +333,10 @@ local function GroupState(g, book, buffs, track, c)
     end
     local cast = c and type(c.last[g.key]) == "string" and known[c.last[g.key]:lower()] or knownList[1]
 
-    -- Your own blessing: a different blessing from another paladin doesn't
-    -- count (yours goes on top of it); theirs of the one you want does
-    -- (yours would only replace it).
-    local counts
-    if g.key == "blessing" and cast then
-        counts = {}
-        for i, s in ipairs(g.spells) do
-            local n = root.SpellName(s[1]) or s[2]
-            if n:lower() == cast:lower() then
-                counts[n:lower()] = true
-                local gr = g.also and g.also[i]
-                if gr then
-                    counts[(root.SpellName(gr[1]) or gr[2]):lower()] = true
-                end
-            end
-        end
-    end
     local best, bestName, forever
     for _, n in ipairs(names) do
         local b = buffs[n:lower()]
-        if b and (not counts or b.mine or counts[n:lower()]) then
+        if b then
             if b.expires == 0 or b.duration == 0 then
                 forever, bestName = true, n
             elseif not forever and (not best or b.expires - now > best.left) then
@@ -409,272 +356,6 @@ local function GroupState(g, book, buffs, track, c)
     return { state = "missing", cast = cast, name = cast }
 end
 Buffs.GroupState = GroupState
-
--------------------------------------------------------------------------------
--- Blessings on your group (paladins)
--------------------------------------------------------------------------------
-
--- Each blessing with its greater (class-wide) version, which counts too.
-local BLESSINGS = {
-    might = { 19740, "Blessing of Might", 25782, "Greater Blessing of Might" },
-    wisdom = { 19742, "Blessing of Wisdom", 25894, "Greater Blessing of Wisdom" },
-    kings = { 20217, "Blessing of Kings", 25898, "Greater Blessing of Kings" },
-}
--- Might is melee attack power only on Forever, so hunters never get it.
-local CLASS_BLESSINGS = {
-    WARRIOR = { "might", "kings" }, ROGUE = { "might", "kings" },
-    HUNTER = { "kings", "wisdom" },
-    MAGE = { "wisdom", "kings" }, WARLOCK = { "wisdom", "kings" }, PRIEST = { "wisdom", "kings" },
-}
--- Druids, shamans and paladins go by their group role.
-local ROLE_BLESSINGS = { DAMAGER = { "might", "kings" }, HEALER = { "wisdom", "kings" } }
-local BLESSING_ORDER = { "might", "wisdom", "kings" } -- the right-click cycle
-local BLESSING_REFRESH = 60 -- seconds left that count as "about to run out"
-
--- What a class and group role want, best first. Blessings you haven't
--- learned are passed over, so "kings" first means "Kings if you have it".
--- melee: a druid in cat or bear form (for when there is no role to go by).
-function Buffs.BlessingsFor(class, role, melee)
-    if role == "TANK" then
-        return { "kings", "might" }
-    end
-    if CLASS_BLESSINGS[class] then
-        return CLASS_BLESSINGS[class]
-    end
-    if ROLE_BLESSINGS[role] then
-        return ROLE_BLESSINGS[role]
-    end
-    -- No role: a shaman's or paladin's spec can't be seen from outside.
-    return melee and { "kings", "might" } or { "kings", "wisdom" }
-end
-
-local function Safe(fn, ...)
-    if type(fn) ~= "function" then
-        return nil
-    end
-    local ok, a, b = pcall(fn, ...)
-    if not ok or IsSecret(a) or IsSecret(b) then
-        return nil
-    end
-    return a, b
-end
-
--- Who to look at: the others in your group, else a friendly player you
--- have targeted. You are left to "Blessing on yourself".
-local function BlessUnits()
-    local list = {}
-    if Safe(IsInRaid) then
-        for i = 1, 40 do
-            local u = "raid" .. i
-            if Safe(UnitExists, u) and not Safe(UnitIsUnit, u, "player") then
-                list[#list + 1] = u
-            end
-        end
-    elseif Safe(IsInGroup) then
-        for i = 1, 4 do
-            if Safe(UnitExists, "party" .. i) then
-                list[#list + 1] = "party" .. i
-            end
-        end
-    elseif Safe(UnitExists, "target") and Safe(UnitIsPlayer, "target") and Safe(UnitIsFriend, "player", "target")
-        and not Safe(UnitIsUnit, "target", "player") then
-        list[1] = "target"
-    end
-    return list
-end
-
--- Can a blessing reach them right now?
-local function Reachable(unit, spell)
-    if not Safe(UnitIsConnected, unit) or Safe(UnitIsDeadOrGhost, unit) or not Safe(UnitIsVisible, unit) then
-        return false
-    end
-    if C_Spell and C_Spell.IsSpellInRange then
-        local inRange = Safe(C_Spell.IsSpellInRange, spell, unit)
-        if inRange == false then
-            return false
-        end
-    elseif type(UnitInRange) == "function" then
-        local inRange, checked = Safe(UnitInRange, unit)
-        if checked and not inRange then
-            return false
-        end
-    end
-    return true
-end
-
--- A blessing (or its greater version) on a unit: { left, mine } or false
--- when it isn't there; nil when the game won't say.
-local function BlessingOn(unit, key)
-    if not (C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName) then
-        return nil
-    end
-    local b = BLESSINGS[key]
-    for _, s in ipairs({ { b[1], b[2] }, { b[3], b[4] } }) do
-        local ok, a = pcall(C_UnitAuras.GetAuraDataBySpellName, unit, root.SpellName(s[1]) or s[2], "HELPFUL")
-        if not ok or IsSecret(a) then
-            return nil
-        end
-        if type(a) == "table" then
-            -- Only the caster tells whose it is. (isFromPlayerOrPlayerPet is
-            -- true for any player's buff, not just yours.)
-            local exp, src = a.expirationTime, a.sourceUnit
-            if IsSecret(exp) or IsSecret(src) then
-                return nil
-            end
-            local mine = type(src) == "string" and Safe(UnitIsUnit, src, "player") or false
-            exp = tonumber(exp) or 0
-            return { left = exp == 0 and math.huge or exp - GetTime(), mine = mine and true or false }
-        end
-    end
-    return false
-end
-
--- For one unit: the blessing name to cast and how it stands ("missing",
--- "soon", "ok"), or nil when there is nothing to do or no telling.
--- A blessing another paladin already gave them is skipped for the next one.
--- Your own pick for someone (right-click on the icon), by name.
-local function FullUnitName(unit)
-    local name, realm = Safe(UnitName, unit)
-    if type(name) ~= "string" then
-        return nil
-    end
-    if type(realm) == "string" and realm ~= "" then
-        return name .. "-" .. realm
-    end
-    return name
-end
-
-local function Picks()
-    local c = CharData()
-    if not c then
-        return nil
-    end
-    if type(c.blessPicks) ~= "table" then
-        c.blessPicks = {}
-    end
-    return c.blessPicks
-end
-
-local function PickFor(unit)
-    local picks, name = Picks(), FullUnitName(unit)
-    local p = picks and name and picks[name]
-    return BLESSINGS[p] and p or nil
-end
-
-local function UnitBlessing(unit, known)
-    local _, class = Safe(UnitClass, unit)
-    local role = Safe(UnitGroupRolesAssigned, unit)
-    local power = Safe(UnitPowerType, unit)
-    local melee = class == "DRUID" and (power == 1 or power == 3) -- rage or energy: bear or cat
-    local pick = PickFor(unit)
-    -- A paladin keeps one blessing on each person: if yours is on them they
-    -- are done (until it fades), unless you picked another one for them.
-    -- Casting a different one would only replace yours.
-    local mineKey, mineLeft
-    for key in pairs(BLESSINGS) do
-        local on = BlessingOn(unit, key)
-        if on == nil then
-            return nil
-        end
-        if on and on.mine then
-            mineKey, mineLeft = key, on.left
-        end
-    end
-    if mineKey and known[mineKey] and (not pick or pick == mineKey) then
-        if mineLeft <= BLESSING_REFRESH then
-            return known[mineKey], "soon", mineLeft
-        end
-        return known[mineKey], "ok"
-    end
-    local list = pick and known[pick] and { pick } or Buffs.BlessingsFor(class, role, melee)
-    for _, key in ipairs(list) do
-        local cast = known[key]
-        if cast then
-            local on = BlessingOn(unit, key)
-            if on == nil then
-                return nil
-            end
-            if not on then
-                return cast, "missing"
-            end
-            if on.mine then
-                if on.left <= BLESSING_REFRESH then
-                    return cast, "soon", on.left
-                end
-                return cast, "ok"
-            end
-            -- someone else's: try the next one
-        end
-    end
-    return nil
-end
-
-local function ShortUnitName(unit)
-    local name = Safe(UnitName, unit)
-    return type(name) == "string" and name or nil
-end
-
-local function PartyBlessingState(g, book)
-    -- Raids are PallyPower's: it shares out blessings between all paladins.
-    if Safe(IsInRaid) and root.AddonLoaded("PallyPower") then
-        return { state = "ok", pallyPower = true }
-    end
-    local known, any = {}, false
-    for key, b in pairs(BLESSINGS) do
-        local n = root.KnownSpell(b[1], b[2], book)
-        if n then
-            known[key], any = n, true
-        end
-    end
-    if not any then
-        return { state = "unlearned" }
-    end
-    local first, waiting = nil, 0
-    for _, unit in ipairs(BlessUnits()) do
-        local cast, state, left = UnitBlessing(unit, known)
-        if cast and state ~= "ok" and Reachable(unit, cast) then
-            waiting = waiting + 1
-            if not first then
-                first = { state = state, cast = cast, name = cast, unit = unit, left = left,
-                    who = ShortUnitName(unit) or unit, picked = PickFor(unit) ~= nil, known = known }
-            end
-        end
-    end
-    if not first then
-        return { state = "ok" }
-    end
-    first.more = waiting - 1
-    return first
-end
-Buffs.PartyBlessingState = PartyBlessingState
-
--- Right-click on the icon: the next blessing for the person it shows, then
--- back to automatic. Returns the new pick (nil = automatic).
-function Buffs.CycleBlessing(st)
-    local picks, name = Picks(), st and st.unit and FullUnitName(st.unit)
-    if not picks or not name or type(st.known) ~= "table" then
-        return nil
-    end
-    local cycle = {}
-    for _, key in ipairs(BLESSING_ORDER) do
-        if st.known[key] then
-            cycle[#cycle + 1] = key
-        end
-    end
-    local current, nextKey = picks[name], cycle[1]
-    if current then
-        nextKey = nil -- after the last one: automatic again
-        for i, key in ipairs(cycle) do
-            if key == current then
-                nextKey = cycle[i + 1]
-            end
-        end
-    end
-    picks[name] = nextKey
-    local label = nextKey and st.known[nextKey] or "automatic"
-    root.Print(("%s: %s from now on."):format(st.who or name, label))
-    return nextKey
-end
 
 -- True when reminders make no sense right now.
 local function Busy()
@@ -750,15 +431,7 @@ local function ShowTooltip(self)
     end
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:SetText(item.st.name or item.group.label, 1, 1, 1)
-    if item.st.who then
-        GameTooltip:AddLine(("For %s%s."):format(item.st.who,
-            item.st.state == "soon" and (", runs out in " .. root.Clock(item.st.left)) or ""), nil, nil, nil, true)
-        if (item.st.more or 0) > 0 then
-            GameTooltip:AddLine(("%d more after them."):format(item.st.more), nil, nil, nil, true)
-        end
-        GameTooltip:AddLine(item.st.picked and "Your pick for them. Right-click for another, or back to automatic."
-            or "Picked by their class and role. Right-click to pick another for them.", 0.8, 0.8, 0.8, true)
-    elseif item.st.state == "soon" then
+    if item.st.state == "soon" then
         GameTooltip:AddLine("Runs out in " .. root.Clock(item.st.left) .. ".", nil, nil, nil, true)
     else
         GameTooltip:AddLine("Not on you.", nil, nil, nil, true)
@@ -800,16 +473,9 @@ local function CreateButton(i)
         SavePoint()
     end)
     -- Tracking is switched on through the minimap, not cast.
-    -- Right-click on the group blessing icon: pick another blessing for
-    -- that person (only left-click casts: there is no type2).
     b:HookScript("PostClick", function(self, button, down)
         local item = self.item
         if down or not item or IsShiftKeyDown() or InCombatLockdown() then
-            return
-        end
-        if button == "RightButton" and item.group.party then
-            Buffs.CycleBlessing(item.st)
-            Buffs.Update()
             return
         end
         if item.st.track then
@@ -889,11 +555,7 @@ local function Layout()
             b:SetPoint("LEFT", container, "LEFT", (i - 1) * (SIZE + GAP), 0)
             b:Show()
         end
-        if st.who then
-            b.label:SetText(st.who:sub(1, 12))
-        else
-            b.label:SetText(st.state == "soon" and root.Clock(st.left) or "missing")
-        end
+        b.label:SetText(st.state == "soon" and root.Clock(st.left) or "missing")
     end
     HideFrom(#list + 1)
 end
@@ -995,17 +657,14 @@ function Buffs.Report()
         elseif not GroupOn(g, c) then
             text = "switched off"
         elseif g.onlyWhen and not g.onlyWhen() then
-            text = "not needed right now (DPS mode)"
+            text = "not needed right now"
         elseif st.state == "unknown" then
             text = "can't tell right now"
         elseif st.state == "missing" then
             text = "missing, a click casts " .. tostring(st.cast)
-                .. (st.who and (" on " .. st.who) or "")
                 .. (st.track and " (through the minimap)" or "")
         elseif st.state == "soon" then
-            text = st.name .. (st.who and (" on " .. st.who) or "") .. " runs out in " .. root.Clock(st.left)
-        elseif g.party then
-            text = st.pallyPower and "left to PallyPower in raids" or "ok, everyone in reach has theirs"
+            text = st.name .. " runs out in " .. root.Clock(st.left)
         else
             text = "ok: " .. tostring(st.name) .. (st.left and (", " .. root.Clock(st.left) .. " left") or "")
         end
@@ -1030,8 +689,6 @@ events:RegisterEvent("PLAYER_UNGHOST")
 events:RegisterEvent("MINIMAP_UPDATE_TRACKING")
 events:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
 events:RegisterUnitEvent("UNIT_AURA", "player")
-events:RegisterEvent("GROUP_ROSTER_UPDATE")
-events:RegisterEvent("PLAYER_TARGET_CHANGED")
 
 local updateQueued = false
 local function QueueUpdate()
@@ -1049,6 +706,13 @@ events:SetScript("OnEvent", function(_, event)
         return
     end
     if event == "PLAYER_LOGIN" then
+        local db = DB()
+        if db and PlayerClass() == "PALADIN" and not db.libramNoted and not root.AddonLoaded("ZyrumisLibram") then
+            db.libramNoted = true
+            C_Timer.After(6, function()
+                root.Print("paladin blessings, auras and Righteous Fury reminders have moved to the separate addon Zyrumi's Libram.")
+            end)
+        end
         local ok, err = pcall(BuildPage)
         if not ok then
             root.Print("buff reminders page: " .. tostring(err))
