@@ -79,6 +79,9 @@ AfkScreen.ANIMS = {
     cheer = { text = "Cheers now and then" },
 }
 
+-- How far the character's feet reach down into the bottom bar (pixels).
+AfkScreen.FEET_INTO_BAR = 26
+
 -- Model facing in radians; positive turns it toward the right of the screen.
 AfkScreen.FACE_ANGLE = 0.6
 
@@ -401,16 +404,17 @@ function AfkScreen.Layout()
     local m = card.model
     local modelH = AfkScreen.SIZES[Opt("size")] or AfkScreen.SIZES[3]
     local modelW = math.floor(modelH * 0.55)
+    -- The corner text stays in the corner; the character stands on the bar
+    -- above it, feet a little into the bar (the text is drawn over them).
     local leftIn, rightIn = 40, 40
     if m then
         m:ClearAllPoints()
         m:SetSize(modelW, modelH)
+        local feet = barH - AfkScreen.FEET_INTO_BAR
         if side == "left" then
-            m:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 10, 0)
-            leftIn = modelW + 20
+            m:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 20, feet)
         elseif side == "right" then
-            m:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -10, 0)
-            rightIn = modelW + 20
+            m:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -20, feet)
         end
         m:SetShown(side == "left" or side == "right")
     end
