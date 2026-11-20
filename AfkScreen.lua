@@ -422,11 +422,44 @@ local function Font(fs, size, r, g, b)
     end
 end
 
-local function Bar(parent)
+-- Bar shading: darkest at the screen edge, lighter toward the middle of the
+-- screen, then a soft fade above (below, for the top bar) so there is no hard
+-- edge. Alphas: at the edge, at the bar's inner edge; FADE pixels of fade.
+AfkScreen.SHADE = { edge = 0.95, inner = 0.6, fade = 90 }
+
+local function Shade(tex, fromAlpha, toAlpha)
+    -- fromAlpha at the bottom of the texture, toAlpha at its top
+    tex:SetColorTexture(1, 1, 1, 1)
+    if tex.SetGradient and CreateColor then
+        local ok = pcall(tex.SetGradient, tex, "VERTICAL",
+            CreateColor(0.04, 0.035, 0.03, fromAlpha), CreateColor(0.04, 0.035, 0.03, toAlpha))
+        if ok then
+            return
+        end
+    end
+    tex:SetColorTexture(0.04, 0.035, 0.03, (fromAlpha + toAlpha) / 2)
+end
+
+-- atTop: the bar along the top of the screen (dark at the top edge).
+local function Bar(parent, atTop)
     local f = CreateFrame("Frame", nil, parent)
+    local sh = AfkScreen.SHADE
     local bg = f:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(0.05, 0.045, 0.04, 0.92)
+    local fade = f:CreateTexture(nil, "BACKGROUND")
+    fade:SetHeight(sh.fade)
+    if atTop then
+        Shade(bg, sh.inner, sh.edge)
+        fade:SetPoint("TOPLEFT", f, "BOTTOMLEFT")
+        fade:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT")
+        Shade(fade, 0, sh.inner)
+    else
+        Shade(bg, sh.edge, sh.inner)
+        fade:SetPoint("BOTTOMLEFT", f, "TOPLEFT")
+        fade:SetPoint("BOTTOMRIGHT", f, "TOPRIGHT")
+        Shade(fade, sh.inner, 0)
+    end
+    f.fade = fade
     local line = f:CreateTexture(nil, "BORDER")
     line:SetHeight(1)
     line:SetColorTexture(0.91, 0.78, 0.42, 0.8)
@@ -451,7 +484,7 @@ local function Build()
     card.bottom:SetPoint("BOTTOMRIGHT")
     card.bottom.line:SetPoint("TOPLEFT")
     card.bottom.line:SetPoint("TOPRIGHT")
-    card.top = Bar(card)
+    card.top = Bar(card, true)
     card.top:SetPoint("TOPLEFT")
     card.top:SetPoint("TOPRIGHT")
     card.top:SetHeight(40)
