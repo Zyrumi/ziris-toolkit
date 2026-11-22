@@ -39,6 +39,8 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - If your bags are full, what doesn't fit stays on, and chat tells you how many.
 - Gear can't be changed in combat or while you are dead. Undress before the run, dress when you are through.
 
+**Quiver in its own window.** With the combined bag (one big bag window, the Enhanced preset's default), your quiver or ammo pouch is no longer mixed in with your other bags. Its slots leave the combined bag, which gets shorter, and it opens as its own bag window beside it whenever you open your bags. Closing the bags closes both. With single bags nothing changes, since the quiver has its own window there already.
+
 **Boat times.** A few lines at the top of the screen, only when they matter:
 
 - Standing at a dock: when each boat or zeppelin from there leaves, for example "Boat to Menethil leaves in 1:42". If it is still on its way, also when it arrives.

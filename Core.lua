@@ -8,6 +8,7 @@
 --   Cleanse buttons (Cleanse.lua)
 --   Thanks          (Thanks.lua)
 --   Undress         (Undress.lua)
+--   Quiver window   (Quiver.lua, quiver out of the combined bag)
 --   Boat times      (Boats.lua, uses the DockWatch addon's public API)
 --   Friends list    (Friends.lua)
 --   Instance limit  (Instances.lua)
@@ -31,6 +32,7 @@ local DEFAULTS = {
         cleanse = true,
         thanks = true,
         undress = true,
+        quiver = true,
         boats = true,
         friends = true,
         instances = true,
@@ -621,6 +623,16 @@ local function BuildMainPage()
         function(v) root.SetModule("undress", v) end)
     y = y - 26
     Note(page, "For corpse runs: gear in your bags loses no durability when you die. Rings, necklace and trinkets stay on.", x + 30, y)
+    y = y - 34
+
+    -- Quiver window
+    Check(page, "Quiver in its own window",
+        "With the combined bag (one big bag window), your quiver or ammo pouch opens as its own bag window beside it instead of being mixed in with your other bags.",
+        x, y,
+        function() return root.ModuleOn("quiver") end,
+        function(v) root.SetModule("quiver", v) end)
+    y = y - 26
+    Note(page, "Only with the combined bag: single bags show the quiver on its own already. Takes effect the next time you open your bags.", x + 30, y)
     y = y - 34
 
     -- Boat times
