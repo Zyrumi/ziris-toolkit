@@ -19,6 +19,10 @@
 --     client: a click switches back on what you had, through the minimap.
 --   - If the game won't say what buffs you have, nothing is shown (no
 --     guessing).
+--   - Forever campfires: sitting at a camp gives one "Camp Benefits" buff
+--     with a line per camp item. Some of those replace a class buff (the
+--     Incense Candle's Intellect can't stack with Arcane Intellect), so a
+--     matching line counts as that buff.
 
 local ADDON_NAME, root = ...
 
@@ -29,25 +33,26 @@ local IsSecret = root.IsSecret
 
 -- spells: what to cast, first one is the default. also: buffs from others
 -- that count too (group versions, greater blessings). off: starts switched
--- off. Spell IDs are the classic rank 1 IDs; the English name is a fallback.
+-- off. camp: text in the Camp Benefits tooltip (lower case)
+-- of the Forever camp item that can't stack with this buff. Spell IDs are the classic rank 1 IDs; the English name is a fallback.
 local GROUPS = {
     -- Paladin blessings, auras and Righteous Fury live in the separate
     -- Zyrumi's Libram addon (one place for paladin blessing logic).
 
-    { key = "fortitude", label = "Power Word: Fortitude", class = "PRIEST", spells = {
+    { key = "fortitude", label = "Power Word: Fortitude", class = "PRIEST", camp = "stamina increased", spells = {
         { 1243, "Power Word: Fortitude" } }, also = { { 21562, "Prayer of Fortitude" } } },
     { key = "innerFire", label = "Inner Fire", class = "PRIEST", spells = { { 588, "Inner Fire" } } },
-    { key = "divineSpirit", label = "Divine Spirit", class = "PRIEST", spells = {
+    { key = "divineSpirit", label = "Divine Spirit", class = "PRIEST", camp = "spirit increased", spells = {
         { 14752, "Divine Spirit" } }, also = { { 27681, "Prayer of Spirit" } } },
     { key = "shadowProtection", label = "Shadow Protection", class = "PRIEST", off = true, spells = {
         { 976, "Shadow Protection" } }, also = { { 27683, "Prayer of Shadow Protection" } } },
 
-    { key = "intellect", label = "Arcane Intellect", class = "MAGE", spells = {
+    { key = "intellect", label = "Arcane Intellect", class = "MAGE", camp = "intellect increased", spells = {
         { 1459, "Arcane Intellect" } }, also = { { 23028, "Arcane Brilliance" } } },
     { key = "mageArmor", label = "Mage armor", class = "MAGE", spells = {
         { 168, "Frost Armor" }, { 7302, "Ice Armor" }, { 6117, "Mage Armor" }, { 30482, "Molten Armor" } } },
 
-    { key = "wild", label = "Mark of the Wild", class = "DRUID", spells = {
+    { key = "wild", label = "Mark of the Wild", class = "DRUID", camp = "armor increased", spells = {
         { 1126, "Mark of the Wild" } }, also = { { 21849, "Gift of the Wild" } } },
     { key = "omen", label = "Omen of Clarity", class = "DRUID", spells = { { 16864, "Omen of Clarity" } } },
     { key = "thorns", label = "Thorns", class = "DRUID", off = true, spells = { { 467, "Thorns" } } },
@@ -170,6 +175,54 @@ end
 
 -- Your buffs: [lower case name] = { expires, duration } (0 = never ends).
 -- nil when the game won't say.
+-- Forever's Camp Benefits buff and its tooltip lines (lower case), or
+-- false when the game won't say. Read again only when the buff changes.
+local CAMP_BENEFITS = 1229741
+local CAMP_KEY = "(camp benefits summary)" -- not a buff name the game uses
+local campCache = {}
+local function CampLines(a)
+    local id, exp = a.auraInstanceID, a.expirationTime
+    if campCache.id == id and campCache.exp == exp then
+        return campCache.lines
+    end
+    local lines = false
+    if C_TooltipInfo and C_TooltipInfo.GetUnitBuffByAuraInstanceID and not IsSecret(id) and id then
+        local ok, data = pcall(C_TooltipInfo.GetUnitBuffByAuraInstanceID, "player", id)
+        if ok and type(data) == "table" and not IsSecret(data) and type(data.lines) == "table" then
+            lines = {}
+            for _, line in ipairs(data.lines) do
+                local t = line.leftText
+                if type(t) == "string" and not IsSecret(t) then
+                    lines[#lines + 1] = t:lower()
+                end
+            end
+            if #lines == 0 then
+                lines = false
+            end
+        end
+    end
+    campCache = { id = id, exp = exp, lines = lines }
+    return lines
+end
+
+-- Does Camp Benefits hold the camp item that replaces this group's buff?
+-- Can't read it: counts (better quiet than asking for a buff that won't stick).
+local function CampCovers(g, camp)
+    if not (g.camp and camp) then
+        return false
+    end
+    if not camp.lines then
+        return true
+    end
+    for _, t in ipairs(camp.lines) do
+        if t:find(g.camp, 1, true) then
+            return true
+        end
+    end
+    return false
+end
+Buffs.CampCovers = CampCovers
+
 local function PlayerBuffs()
     if not (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then
         return nil
@@ -197,6 +250,10 @@ local function PlayerBuffs()
                     out[key] = { expires = exp, duration = dur, mine = mine or (old and old.mine) or false }
                 elseif mine then
                     old.mine = true
+                end
+                local id = a.spellId
+                if not IsSecret(id) and (id == CAMP_BENEFITS or key == "camp benefits") then
+                    out[CAMP_KEY] = { expires = exp, duration = dur, lines = CampLines(a) }
                 end
             end
         end
@@ -355,6 +412,14 @@ local function GroupState(g, book, buffs, track, c)
             elseif not forever and (not best or b.expires - now > best.left) then
                 best, bestName = { left = b.expires - now, duration = b.duration }, n
             end
+        end
+    end
+    local camp = buffs[CAMP_KEY]
+    if not forever and CampCovers(g, camp) then
+        if camp.expires == 0 or camp.duration == 0 then
+            forever, bestName = true, "Camp Benefits"
+        elseif not best or camp.expires - now > best.left then
+            best, bestName = { left = camp.expires - now, duration = camp.duration }, "Camp Benefits"
         end
     end
     if forever then

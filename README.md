@@ -70,6 +70,7 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - Covers what your class can cast on itself: priest Fortitude, Inner Fire, Divine Spirit and Shadow Protection, mage Arcane Intellect and armors, druid Mark of the Wild, Omen of Clarity and Thorns, shaman shields, warlock armors, hunter aspects and Trueshot Aura, and gathering tracking (Find Minerals, Find Herbs, Find Fish, Find Treasure). Creature tracking like Track Beasts is never asked for, since it fills up the minimap.
 - Paladin blessings, auras and Righteous Fury are no longer here: they live in the separate addon Zyrumi's Libram, which also blesses your whole group with one key.
 - Pick which ones per character on the Buff reminders page under Ziri's Toolkit. Thorns and Shadow Protection start switched off.
+- At a Forever campfire, the Camp Benefits buff counts when it holds the camp item that can't stack with your buff: Incense Candle for Arcane Intellect, First Aid Kit for Fortitude, Faction Banner for Divine Spirit, Enchanted Lute for Mark of the Wild.
 - Groups like hunter aspects or mage armors are fine with any one of them; a click casts the one you had last. Tracking is switched back on through the minimap.
 - "About to run out" means the last tenth of the buff: at least 30 seconds and at most 5 minutes before it ends.
 - Hidden in combat, while dead, on a flight path and (druids, shamans) while shapeshifted. Shift-drag an icon to move the row. `/zt buffs` lists what is watched and how each stands.
