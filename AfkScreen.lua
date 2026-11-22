@@ -422,8 +422,8 @@ function AfkScreen.HideProbe()
 end
 
 -- true / false when the loaded model says, nil when it can't say yet.
-function AfkScreen.ModelHas(anim)
-    local m = probe
+function AfkScreen.ModelHas(anim, model)
+    local m = model or probe
     if not m or not m.HasAnimation then
         return nil
     end
@@ -665,6 +665,7 @@ local function Build()
     card = CreateFrame("Frame", "ZirisToolkitAfkCard", WorldFrame)
     card:SetFrameStrata("DIALOG")
     card:SetAllPoints(WorldFrame)
+    card.editor = false -- the preview panel, built the first time it is needed
     card:Hide()
 
     card.bottom = Bar(card)
@@ -950,8 +951,202 @@ function AfkScreen.ShowCard(reason)
 end
 
 function AfkScreen.HideCard()
+    local wasPreview = AfkScreen.previewing
+    AfkScreen.previewing = false
     if card then
+        if card.editor then
+            card.editor:Hide()
+        end
         card:Hide()
+    end
+    -- The settings window stayed open underneath: show what was changed.
+    if wasPreview then
+        pcall(root.UI.RefreshAll)
+        if AfkScreen.ShowAnimChoice then
+            pcall(AfkScreen.ShowAnimChoice)
+        end
+    end
+end
+
+-------------------------------------------------------------------------------
+-- Preview: the AFK screen with a small panel on it to change the look and
+-- see each change at once. The settings window stays open underneath (it
+-- hides with the rest of the interface) and is back after Done.
+-------------------------------------------------------------------------------
+
+-- Puts the current options on the card at once: place, size, facing, and
+-- the chosen animation from its start.
+function AfkScreen.ApplyLive()
+    if not (card and card:IsShown()) then
+        return
+    end
+    AfkScreen.Layout()
+    local m = card.model
+    if m then
+        m.facing = AfkScreen.FacingRad(Opt("z"))
+        pcall(m.SetFacing, m, m.facing)
+        m.applied = nil
+        shownFor = 0
+    end
+    if card.editor and card.editor.ShowAnim then
+        card.editor.ShowAnim()
+    end
+end
+
+-- The animation choices in order: the special ones, then every listed
+-- animation the AFK screen's model has (all while it can't say yet).
+function AfkScreen.AnimChoices(model)
+    local list = {}
+    for _, key in ipairs(AfkScreen.ANIM_ORDER) do
+        list[#list + 1] = key
+    end
+    for _, group in ipairs(root.AnimData or {}) do
+        for _, item in ipairs(group.list) do
+            if AfkScreen.ModelHas(item[1], model) ~= false then
+                list[#list + 1] = item[1]
+            end
+        end
+    end
+    return list
+end
+
+-- The next (step 1) or previous (step -1) animation choice.
+function AfkScreen.StepAnim(step)
+    local p = DB()
+    local list = AfkScreen.AnimChoices(card and card.model)
+    local at = 0
+    for i, v in ipairs(list) do
+        if v == p.anim then
+            at = i
+        end
+    end
+    at = ((at - 1 + step) % #list) + 1
+    p.anim = list[at]
+    AfkScreen.ApplyLive()
+    return at, #list
+end
+
+local editorRefreshers = {}
+local function BuildEditor()
+    if card.editor then
+        return card.editor
+    end
+    local UI = root.UI
+    local p = DB()
+    local f = CreateFrame("Frame", nil, card, "BackdropTemplate")
+    f:SetFrameLevel((card:GetFrameLevel() or 1) + 50)
+    f:SetSize(312, 386)
+    f:SetPoint("TOP", card, "TOP", 0, -60)
+    if f.SetBackdrop then
+        f:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 16,
+            insets = { left = 4, right = 4, top = 4, bottom = 4 },
+        })
+        f:SetBackdropColor(0, 0, 0, 0.85)
+    end
+    f:EnableMouse(true)
+    f:SetMovable(true)
+    f:SetClampedToScreen(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+
+    local title = f:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    title:SetPoint("TOPLEFT", 14, -12)
+    title:SetText("AFK screen preview")
+    local hint = f:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    hint:SetPoint("TOPRIGHT", -14, -14)
+    hint:SetText("Drag to move")
+
+    local y = -38
+    local function Slide(label, key, minV, maxV, step, format)
+        UI.Slider(f, label, "", 10, y, minV, maxV, step,
+            function() return p[key] end,
+            function(v) p[key] = v end,
+            { format = format, refreshers = editorRefreshers, after = AfkScreen.ApplyLive })
+        y = y - 52
+    end
+    Slide("Across (X)", "x", 0, 100, 1, function(v) return v .. " %" end)
+    Slide("Up (Y)", "y", -20, 80, 1, function(v) return v .. " %" end)
+    Slide("Turn (Z)", "z", 0, 355, 5, function(v) return v .. " degrees" end)
+    Slide("Character size", "height", AfkScreen.HEIGHT_MIN, AfkScreen.HEIGHT_MAX, AfkScreen.HEIGHT_STEP,
+        function(v) return tostring(v) end)
+
+    local animTitle = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    animTitle:SetPoint("TOPLEFT", 14, y)
+    animTitle:SetText("What the character does")
+    local prev = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    prev:SetSize(32, 22)
+    prev:SetPoint("TOPLEFT", 14, y - 18)
+    prev:SetText("<")
+    local nextB = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    nextB:SetSize(32, 22)
+    nextB:SetPoint("TOPRIGHT", -14, y - 18)
+    nextB:SetText(">")
+    local name = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    name:SetPoint("LEFT", prev, "RIGHT", 6, 0)
+    name:SetPoint("RIGHT", nextB, "LEFT", -6, 0)
+    local count = f:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    count:SetPoint("TOP", name, "BOTTOM", 0, -6)
+    f.ShowAnim = function()
+        name:SetText(AfkScreen.AnimName(p.anim))
+        local list = AfkScreen.AnimChoices(card.model)
+        local at
+        for i, v in ipairs(list) do
+            if v == p.anim then
+                at = i
+            end
+        end
+        count:SetText(at and (at .. " of " .. #list) or "")
+    end
+    prev:SetScript("OnClick", function() AfkScreen.StepAnim(-1) end)
+    nextB:SetScript("OnClick", function() AfkScreen.StepAnim(1) end)
+    y = y - 70
+
+    local done = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    done:SetSize(120, 24)
+    done:SetPoint("TOP", f, "TOP", 0, y)
+    done:SetText("Done")
+    done:SetScript("OnClick", function() AfkScreen.EndPreview() end)
+    f.done = done
+
+    f:Hide()
+    card.editor = f
+    return f
+end
+
+function AfkScreen.Preview()
+    if InCombatLockdown() then
+        root.Print("the AFK screen preview can't open during a fight")
+        return
+    end
+    if not root.ModuleOn("afk") then
+        root.Print("switch the AFK screen on first (Ziri's Toolkit page)")
+        return
+    end
+    if ours then
+        return
+    end
+    AfkScreen.Start()
+    if not (ours and card and card:IsShown()) then
+        return
+    end
+    AfkScreen.previewing = true
+    local f = BuildEditor()
+    for _, refresh in ipairs(editorRefreshers) do
+        refresh()
+    end
+    f:Show()
+    f.ShowAnim()
+end
+
+-- Hiding the card (HideCard) ends the preview and refreshes the settings.
+function AfkScreen.EndPreview()
+    AfkScreen.Stop()
+    if AfkScreen.previewing then
+        AfkScreen.HideCard()
     end
 end
 
@@ -1028,6 +1223,11 @@ local function BuildPage()
     y = y - 26
     UI.Note(page, "When you go AFK, the interface hides, names and nameplates go, the camera circles your character and bars show who you are and how long you have been away. Moving, the Toggle UI key (Alt+Z) or a fight brings everything back. Switch it on or off on the Ziri's Toolkit page. Type /afk to try the look.", x, y)
     y = y - 58
+
+    UI.Button(page, "Preview and adjust",
+        "Shows the AFK screen with a small panel on it for where your character stands, its size and what it does, so you see each change at once. Done brings these settings back.",
+        x + 4, y, 170, AfkScreen.Preview)
+    y = y - 34
 
     local p = DB()
     local on = function() return root.ModuleOn("afk") end
