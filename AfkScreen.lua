@@ -67,8 +67,18 @@ AfkScreen.SIZE_NAMES = { "small", "medium", "large", "huge" }
 
 -- Animation numbers of the game's character models.
 local A_STAND, A_WAVE, A_CHEER, A_DANCE, A_SLEEP, A_SIT = 0, 67, 68, 69, 71, 97
+-- The lean NPCs do against walls (WALean01). No emote plays it, but the
+-- character models from Warlords of Draenor on should have it (unverified on
+-- Forever); a model without it
+-- stands instead.
+local A_LEAN = 1260
 
-AfkScreen.ANIM_ORDER = { "wave", "stand", "turn", "dance", "sit", "sleep", "cheer" }
+-- What /zt afk checks on your character's model.
+AfkScreen.LEAN_CHECKS = {
+    { 1260, "lean" }, { 1262, "lean and scrub" }, { 1264, "lean 3" }, { 1266, "lean and talk" },
+}
+
+AfkScreen.ANIM_ORDER = { "wave", "stand", "turn", "dance", "sit", "sleep", "cheer", "lean" }
 AfkScreen.ANIMS = {
     wave = { text = "Waves, then stands" },
     stand = { text = "Stands still" },
@@ -77,6 +87,7 @@ AfkScreen.ANIMS = {
     sit = { text = "Sits down" },
     sleep = { text = "Sleeps" },
     cheer = { text = "Cheers now and then" },
+    lean = { text = "Leans" },
 }
 
 -- The model frame leaves empty space under the feet that grows with the
@@ -144,6 +155,8 @@ function AfkScreen.AnimAt(kind, t)
         return A_SIT
     elseif kind == "sleep" then
         return A_SLEEP
+    elseif kind == "lean" then
+        return A_LEAN
     elseif kind == "cheer" then
         return (t % 15) < 2.6 and A_CHEER or A_STAND
     end
@@ -333,8 +346,51 @@ function AfkScreen.Report()
     end
     root.Print("class icon: " .. tostring(token and GetClassAtlas and Call(GetClassAtlas, token) or "none"))
     root.Print("faction: " .. tostring(Faction() or "none"))
+    AfkScreen.CheckLean()
     if card and card:IsShown() then
         AfkScreen.Layout()
+    end
+end
+
+-- /zt afk: whether your character's model has the lean animations. Loads
+-- your character into an invisible model and answers 1.5 s later, once the
+-- model has had time to load.
+local probe
+function AfkScreen.CheckLean()
+    if not probe then
+        local ok, m = pcall(CreateFrame, "PlayerModel", nil, UIParent)
+        if not ok or not m then
+            root.Print("lean: no model to check with")
+            return
+        end
+        probe = m
+        probe:SetSize(64, 64)
+        probe:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, 0)
+        probe:SetAlpha(0)
+    end
+    probe:Show()
+    pcall(probe.SetUnit, probe, "player")
+    root.Print("lean: checking your character's model...")
+    C_Timer.After(1.5, function()
+        AfkScreen.ReportLean(probe)
+        probe:Hide()
+    end)
+end
+
+function AfkScreen.ReportLean(m)
+    if not m.HasAnimation then
+        root.Print("lean: the game can't say which animations a model has")
+        return
+    end
+    local ok, stands = pcall(m.HasAnimation, m, A_STAND)
+    if not ok or stands ~= true then
+        root.Print("lean: your character's model didn't load in time, try /zt afk again")
+        return
+    end
+    for _, check in ipairs(AfkScreen.LEAN_CHECKS) do
+        local okHas, has = pcall(m.HasAnimation, m, check[1])
+        root.Print("lean: " .. check[2] .. " (" .. check[1] .. "): "
+            .. ((okHas and has == true) and "yes" or "no"))
     end
 end
 
@@ -698,6 +754,19 @@ function AfkScreen.Refresh()
     card.topClockLabel:SetText("Local time")
 end
 
+-- The animation itself, or standing when the model says it doesn't have
+-- it (only a clear "no" counts; asked again every frame, so a model that
+-- is still loading gets the real animation once it has loaded).
+function AfkScreen.WithFallback(m, anim)
+    if anim ~= A_STAND and m.HasAnimation then
+        local ok, has = pcall(m.HasAnimation, m, anim)
+        if ok and has == false then
+            return A_STAND
+        end
+    end
+    return anim
+end
+
 -- Plays the chosen animation and turns the model if asked.
 local shownFor = 0
 function AfkScreen.Animate(dt)
@@ -707,7 +776,7 @@ function AfkScreen.Animate(dt)
     end
     shownFor = shownFor + dt
     local kind = Opt("anim")
-    local want = AfkScreen.AnimAt(kind, shownFor)
+    local want = AfkScreen.WithFallback(m, AfkScreen.AnimAt(kind, shownFor))
     if m.applied ~= want and m.SetAnimation then
         pcall(m.SetAnimation, m, want)
         m.applied = want
