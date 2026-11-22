@@ -112,7 +112,7 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 
 - Moving, casting or chatting ends AFK and brings everything back, and so does the Toggle UI key. A fight ends it at once.
 - It has its own switch on the main page and works whether photo mode is on or not. Photo mode's page has a switch to show the same bars when you press the Toggle UI key yourself; then they show where you are instead of the away timer.
-- Its look is set on the AFK screen page under Ziri's Toolkit: one bar along the bottom or a bar at the top and the bottom; your character on the left, the right or not at all, how big, which way it faces and what it does (waves, stands, turns, dances, sits, sleeps, cheers or leans; a character whose model has no lean stands instead); the game's logo, your class crest, a round class medallion or your Alliance or Horde crest in the middle; and a crest by your name. Type `/afk` to see it.
+- Its look is set on the AFK screen page under Ziri's Toolkit: one bar along the bottom or a bar at the top and the bottom; whether your character shows, and sliders for where it stands across the screen (X), how high (Y), which way it faces all the way round (Z) and how big it is; what it does, picked from a list of about a hundred animations (emotes, sitting and lying poses, things townsfolk do like leaning on a wall, and professions), with only the ones your character's model has on offer; the game's logo, your class crest, a round class medallion or your Alliance or Horde crest in the middle; and a crest by your name. Type `/afk` to see it.
 - In dungeons and raids the game may not tell addons that you are AFK; then the AFK screen doesn't come up.
 - `/zt afk` shows which logo, class icon and faction picture the game gives the AFK screen, and whether your character's model has the lean animations.
 
@@ -129,6 +129,8 @@ This addon replaces the separate Loot Highlight and Fresh Ranks addons. While an
 ## Thanks
 
 Flight times for routes you haven't flown come from [InFlight](https://github.com/LudiusMaximus/InFlight) (TotalPackage, Deranjata, LudiusMaximus) and [FlightCountdown](https://github.com/burk3/FlightCountdown) (burk3), both under the MIT License; see FlightData.lua.
+
+The animation numbers in AnimData.lua come from the community list at [wowdev.wiki](https://wowdev.wiki/M2/AnimationList).
 
 The class crests on the AFK screen (Media/Crests) are Blizzard's class crest art from the WoW blog, as kept on the [Warcraft Wiki](https://warcraft.wiki.gg/wiki/Class). The art belongs to Blizzard Entertainment.
 

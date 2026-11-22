@@ -62,11 +62,15 @@ end
 -- center:  "logo", "class", "faction", "none"
 -- crest:   true = faction crest by your name
 
-AfkScreen.SIZES = { 260, 340, 430, 540 } -- character height in interface pixels
-AfkScreen.SIZE_NAMES = { "small", "medium", "large", "huge" }
+-- The old size steps (character height in interface pixels); only used to
+-- move old settings over to the size slider.
+AfkScreen.SIZES = { 260, 340, 430, 540 }
+
+-- Character size slider: height in interface pixels.
+AfkScreen.HEIGHT_MIN, AfkScreen.HEIGHT_MAX, AfkScreen.HEIGHT_STEP = 150, 1600, 10
 
 -- Animation numbers of the game's character models.
-local A_STAND, A_WAVE, A_CHEER, A_DANCE, A_SLEEP, A_SIT = 0, 67, 68, 69, 71, 97
+local A_STAND, A_WAVE, A_CHEER, A_DANCE, A_SIT = 0, 67, 68, 69, 97
 -- The lean NPCs do against walls (WALean01). No emote plays it, but the
 -- character models from Warlords of Draenor on should have it (unverified on
 -- Forever); a model without it
@@ -78,17 +82,17 @@ AfkScreen.LEAN_CHECKS = {
     { 1260, "lean" }, { 1262, "lean and scrub" }, { 1264, "lean 3" }, { 1266, "lean and talk" },
 }
 
-AfkScreen.ANIM_ORDER = { "wave", "stand", "turn", "dance", "sit", "sleep", "cheer", "lean" }
+-- The few choices that are more than one animation; every other choice is
+-- an animation number from root.AnimData (AnimData.lua).
+AfkScreen.ANIM_ORDER = { "wave", "stand", "turn", "cheer" }
 AfkScreen.ANIMS = {
-    wave = { text = "Waves, then stands" },
-    stand = { text = "Stands still" },
-    turn = { text = "Turns slowly" },
-    dance = { text = "Dances" },
-    sit = { text = "Sits down" },
-    sleep = { text = "Sleeps" },
-    cheer = { text = "Cheers now and then" },
-    lean = { text = "Leans" },
+    wave = { text = "Wave, then stand" },
+    stand = { text = "Stand still" },
+    turn = { text = "Turn slowly" },
+    cheer = { text = "Cheer now and then" },
 }
+-- Choices that used to be named and are numbers now.
+AfkScreen.OLD_ANIMS = { dance = A_DANCE, sit = A_SIT, sleep = 100, lean = A_LEAN }
 
 -- The model frame leaves empty space under the feet that grows with the
 -- character's size; this much of the height is moved down into the bar so
@@ -101,10 +105,46 @@ AfkScreen.TEXT_LOW = 30
 -- Model facing in radians; positive turns it toward the right of the screen.
 AfkScreen.FACE_ANGLE = 0.6
 
+-- show:   your character on the AFK screen at all
+-- x:      across the screen, 0-100 % (middle of the character)
+-- y:      up from standing on the bar, % of the screen height
+-- z:      which way the character faces, degrees (0 = at you)
+-- height: character size in interface pixels
 AfkScreen.DEFAULTS = {
-    layout = "one", side = "right", size = 3, facing = "in", anim = "wave",
+    layout = "one", show = true, x = 92, y = 0, z = 325, height = 430, anim = "wave",
     center = "logo", crest = true,
 }
+-- Older settings, moved over to the ones above once.
+AfkScreen.LEGACY = { "side", "size", "facing" }
+
+-- Radians for the model from the z setting in degrees.
+function AfkScreen.FacingRad(z)
+    return (tonumber(z) or 0) * math.pi / 180
+end
+
+-- Degrees (0-355, steps of 5) from radians.
+function AfkScreen.Degrees(rad)
+    local d = math.floor(rad * 180 / math.pi / 5 + 0.5) * 5
+    return d % 360
+end
+
+-- Moves the old fixed choices (left/right, four sizes, three facings,
+-- named animations) over to the sliders and animation numbers.
+function AfkScreen.Migrate(a)
+    if a.height == nil and (a.size ~= nil or a.side ~= nil or a.facing ~= nil) then
+        local side = a.side or "right"
+        a.height = AfkScreen.SIZES[a.size] or 430
+        a.show = side ~= "off"
+        a.x = (side == "left") and 8 or 92
+        a.z = AfkScreen.Degrees(AfkScreen.Facing(side == "left" and "left" or "right", a.facing or "in"))
+    end
+    for _, key in ipairs(AfkScreen.LEGACY) do
+        a[key] = nil
+    end
+    if type(a.anim) == "string" and AfkScreen.OLD_ANIMS[a.anim] then
+        a.anim = AfkScreen.OLD_ANIMS[a.anim]
+    end
+end
 
 -- ZirisToolkitDB.afk. The first time, takes over what was set when these
 -- settings still lived under photo mode.
@@ -120,12 +160,19 @@ local function DB()
                     old[key] = nil
                 end
             end
+            for _, key in ipairs(AfkScreen.LEGACY) do
+                if old[key] ~= nil then
+                    db.afk[key] = old[key]
+                    old[key] = nil
+                end
+            end
             if old.afk == false then
                 db.modules.afk = false
             end
             old.afk = nil
         end
     end
+    AfkScreen.Migrate(db.afk)
     for k, v in pairs(AfkScreen.DEFAULTS) do
         if db.afk[k] == nil then
             db.afk[k] = v
@@ -147,23 +194,17 @@ end
 
 -- Which animation the model should play t seconds after the card showed.
 function AfkScreen.AnimAt(kind, t)
-    if kind == "wave" then
+    if type(kind) == "number" then
+        return kind
+    elseif kind == "wave" then
         return t < 2.6 and A_WAVE or A_STAND
-    elseif kind == "dance" then
-        return A_DANCE
-    elseif kind == "sit" then
-        return A_SIT
-    elseif kind == "sleep" then
-        return A_SLEEP
-    elseif kind == "lean" then
-        return A_LEAN
     elseif kind == "cheer" then
         return (t % 15) < 2.6 and A_CHEER or A_STAND
     end
     return A_STAND
 end
 
--- Facing for the side the character stands on.
+-- Facing for the old side and facing choices (moving old settings over).
 function AfkScreen.Facing(side, facing)
     if facing == "front" then
         return 0
@@ -356,12 +397,13 @@ end
 -- your character into an invisible model and answers 1.5 s later, once the
 -- model has had time to load.
 local probe
-function AfkScreen.CheckLean()
+-- An invisible model of your character, to ask which animations it has.
+-- Shown while asked for; loading takes a moment.
+function AfkScreen.LoadProbe()
     if not probe then
         local ok, m = pcall(CreateFrame, "PlayerModel", nil, UIParent)
         if not ok or not m then
-            root.Print("lean: no model to check with")
-            return
+            return nil
         end
         probe = m
         probe:SetSize(64, 64)
@@ -370,11 +412,95 @@ function AfkScreen.CheckLean()
     end
     probe:Show()
     pcall(probe.SetUnit, probe, "player")
+    return probe
+end
+
+function AfkScreen.HideProbe()
+    if probe then
+        probe:Hide()
+    end
+end
+
+-- true / false when the loaded model says, nil when it can't say yet.
+function AfkScreen.ModelHas(anim)
+    local m = probe
+    if not m or not m.HasAnimation then
+        return nil
+    end
+    local ok, loaded = pcall(m.HasAnimation, m, A_STAND)
+    if not ok or loaded ~= true then
+        return nil
+    end
+    local okHas, has = pcall(m.HasAnimation, m, anim)
+    if not okHas or type(has) ~= "boolean" then
+        return nil
+    end
+    return has
+end
+
+function AfkScreen.CheckLean()
+    local m = AfkScreen.LoadProbe()
+    if not m then
+        root.Print("lean: no model to check with")
+        return
+    end
     root.Print("lean: checking your character's model...")
     C_Timer.After(1.5, function()
-        AfkScreen.ReportLean(probe)
-        probe:Hide()
+        AfkScreen.ReportLean(m)
+        if not (AfkScreen.page and AfkScreen.pagePanel and AfkScreen.pagePanel:IsShown()) then
+            m:Hide()
+        end
     end)
+end
+
+-- Name of an animation choice, for the dropdown.
+function AfkScreen.AnimName(v)
+    if type(v) == "string" and AfkScreen.ANIMS[v] then
+        return AfkScreen.ANIMS[v].text
+    end
+    for _, group in ipairs(root.AnimData or {}) do
+        for _, item in ipairs(group.list) do
+            if item[1] == v then
+                return item[2]
+            end
+        end
+    end
+    return "Animation " .. tostring(v)
+end
+
+-- Fills the animation dropdown: the special choices, then a submenu per
+-- group with the animations your character's model has (all of them while
+-- the model is still loading). Returns how many animations were offered.
+AfkScreen.MENU_ROWS = 18
+function AfkScreen.FillAnimMenu(rootDesc, get, set)
+    local function IsSelected(v) return get() == v end
+    local function SetSelected(v) set(v) end
+    for _, key in ipairs(AfkScreen.ANIM_ORDER) do
+        rootDesc:CreateRadio(AfkScreen.ANIMS[key].text, IsSelected, SetSelected, key)
+    end
+    if rootDesc.CreateDivider then
+        rootDesc:CreateDivider()
+    end
+    local offered = 0
+    for _, group in ipairs(root.AnimData or {}) do
+        local items = {}
+        for _, item in ipairs(group.list) do
+            if AfkScreen.ModelHas(item[1]) ~= false then
+                items[#items + 1] = item
+            end
+        end
+        if #items > 0 then
+            local sub = rootDesc:CreateButton(group.name)
+            for _, item in ipairs(items) do
+                sub:CreateRadio(item[2], IsSelected, SetSelected, item[1])
+            end
+            if #items > AfkScreen.MENU_ROWS and sub.SetScrollMode then
+                sub:SetScrollMode(AfkScreen.MENU_ROWS * 20)
+            end
+            offered = offered + #items
+        end
+    end
+    return offered
 end
 
 function AfkScreen.ReportLean(m)
@@ -603,13 +729,20 @@ local function Build()
     return card
 end
 
+-- Where the character's feet go: pixels from the left edge, and pixels up
+-- from standing on the bar, for the x and y settings (both in %).
+function AfkScreen.ModelSpot(w, h, x, y)
+    w = (type(w) == "number" and w > 0) and w or 1920
+    h = (type(h) == "number" and h > 0) and h or 1080
+    return math.floor(w * (tonumber(x) or 92) / 100 + 0.5), math.floor(h * (tonumber(y) or 0) / 100 + 0.5)
+end
+
 -- Places everything for the current options.
 function AfkScreen.Layout()
     local two = Opt("layout") == "two"
-    local side = Opt("side")
     local barH = two and 104 or 124
     local m = card.model
-    local modelH = AfkScreen.SIZES[Opt("size")] or AfkScreen.SIZES[3]
+    local modelH = math.max(AfkScreen.HEIGHT_MIN, math.min(AfkScreen.HEIGHT_MAX, tonumber(Opt("height")) or 430))
     local modelW = math.floor(modelH * 0.55)
     -- The corner text stays in the corner; the character stands on the bar
     -- above it, feet a little into the bar (the text is drawn over them).
@@ -618,12 +751,9 @@ function AfkScreen.Layout()
         m:ClearAllPoints()
         m:SetSize(modelW, modelH)
         local feet = barH - math.floor(modelH * AfkScreen.FEET_RATIO + 0.5)
-        if side == "left" then
-            m:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 20, feet)
-        elseif side == "right" then
-            m:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -20, feet)
-        end
-        m:SetShown(side == "left" or side == "right")
+        local x, y = AfkScreen.ModelSpot(card:GetWidth(), card:GetHeight(), Opt("x"), Opt("y"))
+        m:SetPoint("BOTTOM", card, "BOTTOMLEFT", x, feet + y)
+        m:SetShown(Opt("show") and true or false)
     end
 
     card.bottom:SetHeight(barH)
@@ -808,7 +938,7 @@ function AfkScreen.ShowCard(reason)
             m.applied = nil
             pcall(m.SetUnit, m, "player")
             pcall(m.SetCamDistanceScale, m, 0.9)
-            m.facing = AfkScreen.Facing(Opt("side"), Opt("facing"))
+            m.facing = AfkScreen.FacingRad(Opt("z"))
             pcall(m.SetFacing, m, m.facing)
         end
         card:Show()
@@ -913,26 +1043,52 @@ local function BuildPage()
         { value = "two", text = "Top and bottom bars", width = 170,
           tip = "Date and time in a bar at the top, your name in the middle of a bar at the bottom." },
     })
-    Pick("Character", "Where your character stands on the AFK screen.", "side", {
-        { value = "left", text = "Left" },
-        { value = "right", text = "Right" },
-        { value = "off", text = "None" },
-    })
-    UI.Slider(page, "Character size", "How big your character is on the AFK screen.", x, y, 1, 4, 1,
-        function() return p.size end,
-        function(v) p.size = math.floor(v + 0.5) end,
-        { format = function(v) return AfkScreen.SIZE_NAMES[math.floor(v + 0.5)] or tostring(v) end })
-    y = y - 52
-    Pick("Facing", "Which way your character looks.", "facing", {
-        { value = "in", text = "To the middle", width = 140 },
-        { value = "front", text = "At you" },
-        { value = "out", text = "Away" },
-    })
-    local anims = {}
-    for _, key in ipairs(AfkScreen.ANIM_ORDER) do
-        anims[#anims + 1] = { value = key, text = AfkScreen.ANIMS[key].text, width = 170 }
+    UI.Check(page, "Show your character", "Your character in 3D on the AFK screen.", x, y,
+        function() return p.show end,
+        function(v) p.show = v end, on)
+    y = y - 32
+    local function Slide(label, tip, key, minV, maxV, step, format)
+        UI.Slider(page, label, tip, x, y, minV, maxV, step,
+            function() return p[key] end,
+            function(v) p[key] = v end,
+            { format = format })
+        y = y - 52
     end
-    Pick("What the character does", "Your character on the AFK screen only; you don't do it in the game.", "anim", anims)
+    Slide("Across (X)", "Where your character stands, from the left edge (0) to the right edge (100).", "x",
+        0, 100, 1, function(v) return v .. " %" end)
+    Slide("Up (Y)", "How high your character stands: 0 is on the bar, higher numbers lift it up the screen, lower ones sink it into the bar.", "y",
+        -20, 80, 1, function(v) return v .. " %" end)
+    Slide("Turn (Z)", "Which way your character faces, all the way round: 0 is at you, 180 is away from you.", "z",
+        0, 355, 5, function(v) return v .. " degrees" end)
+    Slide("Character size", "How tall your character is on the AFK screen, in interface pixels.", "height",
+        AfkScreen.HEIGHT_MIN, AfkScreen.HEIGHT_MAX, AfkScreen.HEIGHT_STEP, function(v) return tostring(v) end)
+
+    local animTitle = page:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    animTitle:SetPoint("TOPLEFT", x + 4, y)
+    animTitle:SetText("What the character does")
+    local okDd, dd = pcall(CreateFrame, "DropdownButton", nil, page, "WowStyle1DropdownTemplate")
+    if okDd and dd then
+        dd:SetPoint("TOPLEFT", x + 4, y - 18)
+        dd:SetWidth(280)
+        local function ShowChoice()
+            if dd.OverrideText then
+                dd:OverrideText(AfkScreen.AnimName(p.anim))
+            end
+        end
+        dd:SetupMenu(function(_, rootDesc)
+            AfkScreen.FillAnimMenu(rootDesc,
+                function() return p.anim end,
+                function(v)
+                    p.anim = v
+                    ShowChoice()
+                end)
+        end)
+        ShowChoice()
+        AfkScreen.ShowAnimChoice = ShowChoice
+        UI.AddTooltip(dd, "What the character does",
+            "Your character on the AFK screen only; you don't do it in the game. Animations your character's model doesn't have are left out.")
+    end
+    y = y - 52
     Pick("Picture in the middle", "The picture in the middle of the AFK screen.", "center", {
         { value = "logo", text = "Game logo", tip = "The game's own World of Warcraft: Forever logo." },
         { value = "class", text = "Class crest", tip = "Your class's crest in full colour." },
@@ -947,7 +1103,16 @@ local function BuildPage()
     y = y - 40
 
     page:SetHeight(-y + 16)
-    panel:SetScript("OnShow", UI.RefreshAll)
+    panel:SetScript("OnShow", function()
+        UI.RefreshAll()
+        if AfkScreen.ShowAnimChoice then
+            AfkScreen.ShowAnimChoice()
+        end
+        -- So the animation list knows what your character's model has.
+        AfkScreen.LoadProbe()
+    end)
+    panel:SetScript("OnHide", AfkScreen.HideProbe)
+    AfkScreen.pagePanel = panel
     AfkScreen.page = root.RegisterSubPage(panel, "AFK screen")
 end
 
