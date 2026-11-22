@@ -104,6 +104,37 @@ root.skip = {
     freshRanks = OldAddonActive("FreshRanks"),
 }
 
+-- Zyrumi's Libram has the same cleanse buttons, threat icons and healer
+-- mana warning for paladins. On a paladin with the Libram loaded and that
+-- part switched on there, the toolkit leaves the part to the Libram so
+-- nothing shows twice. (The Libram loads after us, so this is asked at
+-- run time, never while the files load.)
+local LIBRAM_PARTS = { cleanse = true, threat = true, healerMana = true }
+local libramLoaded, playerClass
+
+local function IsPaladin()
+    if not playerClass then
+        local ok, _, class = pcall(UnitClass, "player")
+        if ok and type(class) == "string" and not root.IsSecret(class) then
+            playerClass = class
+        end
+    end
+    return playerClass == "PALADIN"
+end
+
+function root.LibramHas(key)
+    if not LIBRAM_PARTS[key] then
+        return false
+    end
+    libramLoaded = libramLoaded or OldAddonActive("ZyrumisLibram")
+    if not libramLoaded or not IsPaladin() then
+        return false
+    end
+    local db = ZyrumisLibramDB
+    local features = type(db) == "table" and db.features
+    return type(features) ~= "table" or features[key] ~= false
+end
+
 -------------------------------------------------------------------------------
 -- Saved settings
 -------------------------------------------------------------------------------
@@ -125,7 +156,7 @@ end
 -- True if a part is switched on. Loot Highlight keeps its own on/off switch
 -- in its own settings, so it is not listed here.
 function root.ModuleOn(key)
-    if root.skip[key] then
+    if root.skip[key] or root.LibramHas(key) then
         return false
     end
     local db = root.db
@@ -313,6 +344,20 @@ local function Check(parent, label, tip, x, y, get, set, enabled)
 end
 
 local OLD_NOTE = "The separate %s addon is still installed, so this part is left to it. Remove the old addon to use this one."
+local LIBRAM_NOTE = "Zyrumi's Libram does this on your paladin, so the toolkit leaves it to the Libram. Switch it off in the Libram to use this one."
+
+-- A note under a part the Libram can take over on a paladin.
+local function PartNote(parent, key, text, x, y)
+    local fs = Note(parent, text, x, y)
+    refreshers[#refreshers + 1] = function()
+        fs:SetText(root.LibramHas(key) and LIBRAM_NOTE or text)
+    end
+    return fs
+end
+
+local function NotLibrams(key)
+    return function() return not root.LibramHas(key) end
+end
 
 -- Puts a settings page in a scroll frame so it fits however many parts
 -- there are. Returns the frame to put the page's contents on.
@@ -552,9 +597,10 @@ local function BuildMainPage()
         "A small button beside your own frame and each party member's frame. Click it to cast your cleanse spell on that person, no targeting needed.",
         x, y,
         function() return root.ModuleOn("cleanse") end,
-        function(v) root.SetModule("cleanse", v) end)
+        function(v) root.SetModule("cleanse", v) end,
+        NotLibrams("cleanse"))
     y = y - 26
-    Note(page, "Click the button beside a frame to cleanse that person. Left and right click use different spells if your class has two.", x + 30, y)
+    PartNote(page, "cleanse", "Click the button beside a frame to cleanse that person. Left and right click use different spells if your class has two.", x + 30, y)
     y = y - 34
 
     -- Thanks
@@ -649,9 +695,10 @@ local function BuildMainPage()
         "In combat: a small icon above each enemy nameplate's name and above your target's name bar, showing if the mob is yours, slipping, or on someone else (and who). Nothing shows when you are solo and the mob is on you.",
         x, y,
         function() return root.ModuleOn("threat") end,
-        function(v) root.SetModule("threat", v) end)
+        function(v) root.SetModule("threat", v) end,
+        NotLibrams("threat"))
     y = y - 26
-    Note(page, "Shield = yours, half shield = slipping, red warning = on someone else (name beside it). Hover the icon above your target's name for numbers. Needs enemy nameplates on (V).", x + 30, y)
+    PartNote(page, "threat", "Shield = yours, half shield = slipping, red warning = on someone else (name beside it). Hover the icon above your target's name for numbers. Needs enemy nameplates on (V).", x + 30, y)
     y = y - 44
 
     -- Healer mana after combat
@@ -659,9 +706,10 @@ local function BuildMainPage()
         "When a fight ends and you are tanking, a warning in the middle of the screen if a healer is under 20% mana.",
         x, y,
         function() return root.ModuleOn("healerMana") end,
-        function(v) root.SetModule("healerMana", v) end)
+        function(v) root.SetModule("healerMana", v) end,
+        NotLibrams("healerMana"))
     y = y - 26
-    Note(page, "Only people with the healer group role count. Tanking means a tank role, form or stance, or Righteous Fury. /zt healers shows what it sees.", x + 30, y)
+    PartNote(page, "healerMana", "Only people with the healer group role count. Tanking means a tank role, form or stance, or Righteous Fury. /zt healers shows what it sees.", x + 30, y)
     y = y - 34
 
     -- Disconnects

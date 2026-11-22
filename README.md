@@ -128,6 +128,10 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 
 This addon replaces the separate Loot Highlight and Fresh Ranks addons. While an old one is still installed, the toolkit leaves that part to it and says so in chat once. Remove the old folder to use the toolkit's. Your Loot Highlight settings move over by themselves after you have played once with both installed.
 
+## Paladins with Zyrumi's Libram
+
+Zyrumi's Libram has the same cleanse buttons, threat icons and healer mana warning. On a paladin with the Libram installed, the toolkit leaves those three to the Libram so nothing shows twice; their boxes on the settings page are greyed out and say so. Switch one off in the Libram and the toolkit's own comes back. Other classes, and paladins without the Libram, keep the toolkit's.
+
 ## Thanks
 
 Flight times for routes you haven't flown come from [InFlight](https://github.com/LudiusMaximus/InFlight) (TotalPackage, Deranjata, LudiusMaximus) and [FlightCountdown](https://github.com/burk3/FlightCountdown) (burk3), both under the MIT License; see FlightData.lua.
