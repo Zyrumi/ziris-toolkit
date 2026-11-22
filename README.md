@@ -67,7 +67,7 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 
 **Buff reminders.** Out of combat, an icon for each of your own buffs, auras and tracking that is missing (after dying, or when it ran out) or about to run out. Click the icon to cast it on yourself. Nothing shows when all is well.
 
-- Covers what your class can cast on itself: priest Fortitude, Inner Fire, Divine Spirit and Shadow Protection, mage Arcane Intellect and armors, druid Mark of the Wild, Omen of Clarity and Thorns, shaman shields, warlock armors, hunter aspects and Trueshot Aura, and tracking (Find Minerals, Find Herbs and the rest).
+- Covers what your class can cast on itself: priest Fortitude, Inner Fire, Divine Spirit and Shadow Protection, mage Arcane Intellect and armors, druid Mark of the Wild, Omen of Clarity and Thorns, shaman shields, warlock armors, hunter aspects and Trueshot Aura, and gathering tracking (Find Minerals, Find Herbs, Find Fish, Find Treasure). Creature tracking like Track Beasts is never asked for, since it fills up the minimap.
 - Paladin blessings, auras and Righteous Fury are no longer here: they live in the separate addon Zyrumi's Libram, which also blesses your whole group with one key.
 - Pick which ones per character on the Buff reminders page under Ziri's Toolkit. Thorns and Shadow Protection start switched off.
 - Groups like hunter aspects or mage armors are fine with any one of them; a click casts the one you had last. Tracking is switched back on through the minimap.

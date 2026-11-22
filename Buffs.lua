@@ -64,8 +64,12 @@ local GROUPS = {
         { 34074, "Aspect of the Viper" } } },
     { key = "trueshot", label = "Trueshot Aura", class = "HUNTER", spells = { { 19506, "Trueshot Aura" } } },
 
+    -- Only the gathering finds are asked for. Creature tracking (hunter
+    -- tracks, Sense Undead/Demons) fills up the minimap, so it is never asked
+    -- for; when you switch one on yourself it still counts as tracking.
     { key = "tracking", label = "Tracking", tracking = true, spells = {
-        { 2580, "Find Minerals" }, { 2383, "Find Herbs" }, { 2481, "Find Treasure" }, { 43308, "Find Fish" },
+        { 2580, "Find Minerals" }, { 2383, "Find Herbs" }, { 2481, "Find Treasure" }, { 43308, "Find Fish" } },
+      quiet = {
         { 1494, "Track Beasts" }, { 19883, "Track Humanoids" }, { 5225, "Track Humanoids" },
         { 19884, "Track Undead" }, { 19885, "Track Hidden" }, { 19880, "Track Elementals" },
         { 19878, "Track Demons" }, { 19882, "Track Giants" }, { 19879, "Track Dragonkin" },
@@ -286,6 +290,15 @@ local function GroupState(g, book, buffs, track, c)
                 c.last[g.key] = active -- what to switch back on later
             end
             return { state = "ok", name = active[1] }
+        end
+        -- Creature tracking you switched on yourself also counts (on clients
+        -- where only one tracking can be on), but is never remembered.
+        for _, s in ipairs(g.quiet or {}) do
+            local n = root.SpellName(s[1]) or s[2]
+            local t = track and track[n:lower()]
+            if (t and t.active) or (buffs and buffs[n:lower()]) then
+                return { state = "ok", name = n }
+            end
         end
         if not next(listed) and not buffs then
             return { state = "unknown" }
