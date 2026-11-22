@@ -244,7 +244,14 @@ function Photo.Enter(reason)
         HideInWorld(true)
     end
     NoteLastRun(p)
-    if p.spin or afk then
+    -- The AFK screen has its own camera switch (and never spins in its preview).
+    local spin
+    if afk then
+        spin = root.AfkScreen and root.AfkScreen.WantsSpin and root.AfkScreen.WantsSpin()
+    else
+        spin = p.spin
+    end
+    if spin then
         StartSpin()
     end
     if (p.card or afk) and root.AfkScreen then

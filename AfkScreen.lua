@@ -111,7 +111,7 @@ AfkScreen.FACE_ANGLE = 0.6
 -- z:      which way the character faces, degrees (0 = at you)
 -- height: character size in interface pixels
 AfkScreen.DEFAULTS = {
-    layout = "one", show = true, x = 92, y = 0, z = 325, height = 430, anim = "wave",
+    layout = "one", circle = true, show = true, x = 92, y = 0, z = 325, height = 430, anim = "wave",
     center = "logo", crest = true,
 }
 -- Older settings, moved over to the ones above once.
@@ -1117,6 +1117,13 @@ local function BuildEditor()
     return f
 end
 
+-- Whether the camera circles your character on the AFK screen: the
+-- setting, and never in the preview (the background would keep moving
+-- while you place your character).
+function AfkScreen.WantsSpin()
+    return Opt("circle") and not AfkScreen.previewing and true or false
+end
+
 function AfkScreen.Preview()
     if InCombatLockdown() then
         root.Print("the AFK screen preview can't open during a fight")
@@ -1129,11 +1136,13 @@ function AfkScreen.Preview()
     if ours then
         return
     end
+    -- Set before starting, so the camera stays still (WantsSpin).
+    AfkScreen.previewing = true
     AfkScreen.Start()
     if not (ours and card and card:IsShown()) then
+        AfkScreen.previewing = false
         return
     end
-    AfkScreen.previewing = true
     local f = BuildEditor()
     for _, refresh in ipairs(editorRefreshers) do
         refresh()
@@ -1243,6 +1252,10 @@ local function BuildPage()
         { value = "two", text = "Top and bottom bars", width = 170,
           tip = "Date and time in a bar at the top, your name in the middle of a bar at the bottom." },
     })
+    UI.Check(page, "Circle the camera around you", "The camera slowly circles your character while the AFK screen is up. Never in the preview.", x, y,
+        function() return p.circle end,
+        function(v) p.circle = v end, on)
+    y = y - 32
     UI.Check(page, "Show your character", "Your character in 3D on the AFK screen.", x, y,
         function() return p.show end,
         function(v) p.show = v end, on)
