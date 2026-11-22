@@ -165,6 +165,74 @@ local function HideInWorld(hide)
     end
 end
 
+-- Name and nameplate settings this game has that the lists above don't,
+-- and which are on, for /zt photo.
+local function OtherNameSettings()
+    local out = {}
+    local getAll = C_Console and C_Console.GetAllCommands
+    if type(getAll) ~= "function" then
+        return out
+    end
+    local ok, all = pcall(getAll)
+    if not ok or type(all) ~= "table" then
+        return out
+    end
+    local known = {}
+    for _, group in ipairs(Photo.GROUPS) do
+        for _, cvar in ipairs(group.cvars) do
+            known[cvar:lower()] = true
+        end
+    end
+    for _, info in ipairs(all) do
+        local name = type(info) == "table" and info.command
+        if type(name) == "string" and not IsSecret(name) and not known[name:lower()] then
+            local low = name:lower()
+            if low:find("^unitname") or low:find("^nameplateshow") or low:find("name") and low:find("^softtarget") then
+                local value = Read(name)
+                if value ~= nil and not Same(value, "0") then
+                    out[#out + 1] = name .. "=" .. value
+                end
+            end
+        end
+    end
+    table.sort(out)
+    return out
+end
+
+-- Nameplates the game has up while the interface is hidden, for /zt photo.
+-- Names go in the saved list only until the next hide.
+local function NotePlates(last)
+    if not (C_NamePlate and type(C_NamePlate.GetNamePlates) == "function") then
+        return
+    end
+    local ok, plates = pcall(C_NamePlate.GetNamePlates)
+    if not ok or type(plates) ~= "table" then
+        return
+    end
+    last.plates = last.plates or {}
+    for _, plate in ipairs(plates) do
+        local unit = plate.namePlateUnitToken or (plate.UnitFrame and plate.UnitFrame.unit)
+        local okName, name = pcall(UnitName, unit or "")
+        if not okName or type(name) ~= "string" or IsSecret(name) then
+            name = "?"
+        end
+        local okVis, visible = pcall(plate.IsVisible, plate)
+        local okVeh, vehicle = pcall(UnitInVehicle, unit or "")
+        local text = name .. ((okVis and visible) and " (showing" or " (hidden")
+            .. ((okVeh and vehicle) and ", in a seat)" or ")")
+        local seen = false
+        for _, v in ipairs(last.plates) do
+            if v == text then
+                seen = true
+            end
+        end
+        if not seen and #last.plates < 10 then
+            last.plates[#last.plates + 1] = text
+        end
+    end
+end
+Photo.NotePlates = NotePlates
+
 -- What the last hide did, for /zt photo.
 local function NoteLastRun(p)
     local still = {}
@@ -184,7 +252,10 @@ local function NoteLastRun(p)
         still = still,
         inWorld = inWorldHidden,
         combat = InCombatLockdown() and true or false,
+        others = OtherNameSettings(),
+        plates = {},
     }
+    NotePlates(p.lastRun)
 end
 
 -------------------------------------------------------------------------------
@@ -325,6 +396,13 @@ function Photo.Report()
         if type(last.still) == "table" and #last.still > 0 then
             root.Print("these stayed on: " .. table.concat(last.still, ", "))
         end
+        if type(last.others) == "table" and #last.others > 0 then
+            root.Print("other name settings that were on: " .. table.concat(last.others, ", "))
+        end
+        if type(last.plates) == "table" then
+            root.Print("nameplates the game had while it was hidden: "
+                .. (#last.plates > 0 and table.concat(last.plates, ", ") or "none"))
+        end
     end
     root.Print("photo mode " .. (root.ModuleOn("photo") and "is on" or "is switched off")
         .. (Photo.hookedToggle and ", listening to the Toggle UI key (Alt+Z)." or ", but the Toggle UI key could not be found."))
@@ -416,8 +494,13 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("PLAYER_LOGOUT")
+events:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 events:SetScript("OnEvent", function(_, event)
-    if event == "PLAYER_LOGIN" then
+    if event == "NAME_PLATE_UNIT_ADDED" then
+        if active and type(DB().lastRun) == "table" then
+            Safely(function() NotePlates(DB().lastRun) end)
+        end
+    elseif event == "PLAYER_LOGIN" then
         Hook()
         -- Values left over from a session that ended with the interface
         -- hidden go back now.

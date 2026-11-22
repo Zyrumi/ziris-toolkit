@@ -107,7 +107,7 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - Pick what goes on the Photo mode page under Ziri's Toolkit. There is also a camera option, off at first, that slowly circles your character while the interface is hidden.
 - Nameplates can't be changed during a fight, so in combat they go (or come back) as soon as the fight ends.
 - If the game closes while the interface is hidden, your settings go back at the next login.
-- `/zt photo` lists the settings it changes and their values right now, and what happened the last time you hid the interface (anything that stayed on).
+- `/zt photo` lists the settings it changes and their values right now, and what happened the last time you hid the interface (anything that stayed on, other name settings the game has that were on, and any nameplates the game had up).
 
 **AFK screen.** When you go AFK (`/afk`, or after a few minutes without doing anything), the interface hides, names, nameplates, chat bubbles and damage numbers go as in photo mode, the camera slowly circles your character (a switch on the AFK screen page turns that off), and a bar along the bottom of the screen shows your character in 3D, your name, level, race and class, your guild, how long you have been away and the time.
 
