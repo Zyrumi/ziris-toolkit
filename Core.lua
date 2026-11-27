@@ -671,7 +671,7 @@ local function BuildMainPage()
         function() return root.ModuleOn("lfgWhere") end,
         function(v) root.SetModule("lfgWhere", v) end)
     y = y - 26
-    Note(page, "If a zone isn't shown, left-click the listing to look it up (one player every 5 seconds). /zt lfg shows what the game sent.", x + 30, y)
+    Note(page, "While the window is open, each key press or click looks up one more zone (one every 5 seconds). /zt lfg shows what the game sent.", x + 30, y)
     y = y - 34
 
     -- Instance limit

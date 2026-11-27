@@ -56,7 +56,8 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 
 **Where players are in Looking For Group.** Hover a listing in the game's Looking For Group window and a small box under its tooltip shows which zone each player is in, so you can see who is already near the dungeon before you invite them or ask to join.
 
-- When the game doesn't send a player's zone, left-click the listing to look it up. Each click looks up the next player, about one every 5 seconds.
+- When the game doesn't send a player's zone, it is looked up with /who. The game only allows that on a key press or click, about one every 5 seconds, so while the window is open every key press, scroll or click looks up the next one. Walking to the dungeon with the window open is enough.
+- The group you are hovering comes first: once its leader is found, one lookup finds every member standing in the same zone. Then everyone listed in your own zone, in one lookup, then the leaders on screen one by one.
 - Zones you looked up show how old they are, for example "Westfall (3 min ago)", and are kept until you log out.
 - `/zt lfg` shows what the game sent for the listing you hovered last.
 
