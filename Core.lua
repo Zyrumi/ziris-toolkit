@@ -11,6 +11,7 @@
 --   Quiver window   (Quiver.lua, quiver out of the combined bag)
 --   Boat times      (Boats.lua, uses the DockWatch addon's public API)
 --   Friends list    (Friends.lua)
+--   LFG zones       (LfgWhere.lua, where players are in Looking For Group)
 --   Instance limit  (Instances.lua)
 --   Rested XP       (Rested.lua)
 --   Buff reminders  (Buffs.lua)
@@ -35,6 +36,7 @@ local DEFAULTS = {
         quiver = true,
         boats = true,
         friends = true,
+        lfgWhere = true,
         instances = true,
         rested = true,
         buffs = true,
@@ -662,6 +664,16 @@ local function BuildMainPage()
     Note(page, "Uses the game's own check behind the invite button. Favorites stay on top. Type /zt friends to see why someone moved.", x + 30, y)
     y = y - 34
 
+    -- Looking For Group zones
+    Check(page, "Where players are in Looking For Group",
+        "Hover a listing in the Looking For Group window to see which zone each player is in, in a box under the game's tooltip.",
+        x, y,
+        function() return root.ModuleOn("lfgWhere") end,
+        function(v) root.SetModule("lfgWhere", v) end)
+    y = y - 26
+    Note(page, "If a zone isn't shown, left-click the listing to look it up (one player every 5 seconds). /zt lfg shows what the game sent.", x + 30, y)
+    y = y - 34
+
     -- Instance limit
     Check(page, "Instance limit",
         "Counts the new dungeon and raid instances you enter, on all your characters. The game allows 5 an hour and 30 a day.",
@@ -854,6 +866,10 @@ SlashCmdList.ZIRISTOOLKIT = function(input)
     local cmd = strtrim(input or ""):lower()
     if cmd == "friends" and root.Friends then
         root.Friends.Report()
+        return
+    end
+    if cmd == "lfg" and root.LfgWhere then
+        root.LfgWhere.Report()
         return
     end
     if cmd == "instances" and root.Instances then

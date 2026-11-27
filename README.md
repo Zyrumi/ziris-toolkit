@@ -54,6 +54,12 @@ Small helpers for World of Warcraft: Forever in one addon. Each part can be swit
 - Favorites always stay on top, and offline friends stay where they are.
 - `/zt friends` lists your online friends and says why each one stays or moved.
 
+**Where players are in Looking For Group.** Hover a listing in the game's Looking For Group window and a small box under its tooltip shows which zone each player is in, so you can see who is already near the dungeon before you invite them or ask to join.
+
+- When the game doesn't send a player's zone, left-click the listing to look it up. Each click looks up the next player, about one every 5 seconds.
+- Zones you looked up show how old they are, for example "Westfall (3 min ago)", and are kept until you log out.
+- `/zt lfg` shows what the game sent for the listing you hovered last.
+
 **Instance limit.** The game lets an account enter at most 5 new dungeon or raid instances an hour and 30 a day. This counts the ones you enter, on all your characters.
 
 - Each time you enter a new instance, chat says which number it was: "Deadmines counted: 3 of 5 this hour, 8 of 30 today."
